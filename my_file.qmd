@@ -1,5 +1,5 @@
 ---
-title: "quarto_summer_school_start"
+title: "Summer School"
 author: "Lina Fricke"
 date: today # the file we be printed with the todays date
 format: 
