@@ -1,0 +1,69 @@
+---
+title: "quarto_summer_school_start"
+author: "Lina Fricke"
+date: today # the file we be printed with the todays date
+format: 
+  html: # can also be pdf, just write 'pdf' 
+    self-contained: true # now I can send the html-file to someone else, not just a code
+    toc: true # table of content in line 8
+    toc-title: My contents
+    toc-location: left # on the left side of the document
+    theme: 
+      dark: superhero
+      light: minty
+    fontsize: 32 px # de
+lang: it #german is de, default is english
+---
+
+# 1 I like Italian Food
+
+## What's about Pizza?
+
+### Vegetarian Pizzas..
+
+#### Margarita
+
+Margarita is a tasty pizza with tomatoes and cheese. 
+
+![Margarita:](images/pizza-margherita.jpg)
+
+
+## 2 What's about pasta?
+
+### Vegetarian pasta
+
+#### Pasta with pesto
+
+Pasta with pesto is easy to made and it's quite popular - not just in Italy. Also German students eat it nearly every week.
+
+![Green pesto:](images/pasta_pesto.jpeg)
+
+
+
+
+
+---
+
+
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this 
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
