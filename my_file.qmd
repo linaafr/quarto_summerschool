@@ -1,5 +1,7 @@
 ---
-title: "Summer School"
+# YAML
+
+title: "Results Study 1"
 author: "Lina Fricke"
 date: today # the file we be printed with the todays date
 format: 
@@ -15,17 +17,65 @@ format:
 lang: it #german is de, default is english
 ---
 
-# 1 I like Italian Food
+# Sociodemographic data
 
-## What's about Pizza?
+* 40 participants
+* 20 male / 20 female
 
-### Vegetarian Pizzas..
-
-#### Margarita
-
-Margarita is a tasty pizza with tomatoes and cheese. 
 
 ![Margarita:](images/pizza-margherita.jpg)
+
+## Basic information
+
+### Age
+
+### Sex
+
+### BMI
+
+## Social Media Behavior
+
+## VAS
+
+### Attention
+
+### Tiredness
+
+### Pain
+
+## Other influencing factors
+
+### Sleep
+
+### Playing Computer Games
+
+### Instrument and Sport
+
+### Social Media on Experimental Behavior
+
+# Neuronavigation data
+
+# Stroop data
+
+# SRTT data
+
+## Not-divided into groups
+
+### Day 1
+
+### Day 2
+
+## Divided into groups
+
+### Day 1
+
+### Day 2
+
+## Memorized sequence
+
+
+
+
 
 
 ## 2 What's about pasta?
