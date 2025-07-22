@@ -94,8 +94,10 @@ The VAS was conducted before and after experiment in both days.
 
 The neuronavigation data was analysed using following code
 
-```{r}
-1 + 1
+```{r code}
+#| echo: fenced
+
+1+1
 ```
 
 # Stroop data
