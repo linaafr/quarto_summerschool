@@ -1,6 +1,4 @@
 ---
-# YAML
-
 title: "Results Study 1"
 author: "Lina Fricke"
 date: today # the file we be printed with the todays date
@@ -14,8 +12,19 @@ format:
       dark: superhero
       light: minty
     fontsize: 32 px # de
+    grid:
+      sidebar-width: 300px
+      body-width: 900px
+      margin-width: 300px
+      gutter-width: 1.5rem
 lang: en #german is de, default is english
+citation-location: margin
+bibliography: references.bib
 ---
+
+::: {.callout-note}
+Not all of the data are analysed yet. You see preliminary results.
+:::
 
 # Sociodemographic data
 
@@ -23,29 +32,50 @@ lang: en #german is de, default is english
 * 20 male / 20 female
 
 
-![Margarita:](images/pizza-margherita.jpg)
-
-## Basic information
-
-
+::: {.panel-tabset}
 
 ### Age
 
+
+
 ### Sex
 
+![](sex.png)
+
 ### BMI
+
+And here I present the results
+
+:::
+
+
+
 
 ## Social Media Behavior
 
 ## VAS
 
+The VAS was conducted before and after experiment in both days.
+
+::: {.panel-tabset}
+
 ### Attention
+
+
 
 ### Tiredness
 
+
+
 ### Pain
 
+
+:::
+
+
 ## Other influencing factors
+
+::: {.panel-tabset}
 
 ### Sleep
 
@@ -55,9 +85,22 @@ lang: en #german is de, default is english
 
 ### Social Media on Experimental Behavior
 
+
+:::
+
+
+
 # Neuronavigation data
 
+The neuronavigation data was analysed using following code
+
+```{r}
+1 + 1
+```
+
 # Stroop data
+
+The Stroop test was initially invented by Stroop [@rsoft].
 
 # SRTT data
 
