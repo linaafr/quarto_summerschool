@@ -5,5 +5,5 @@ format: html
 
 # Hello
 
-Here you can se my first [HTML](my_file.html) document created with quarto
+Here you can see my [results](my_file.html)
 

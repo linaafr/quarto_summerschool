@@ -14,7 +14,7 @@ format:
       dark: superhero
       light: minty
     fontsize: 32 px # de
-lang: it #german is de, default is english
+lang: en #german is de, default is english
 ---
 
 # Sociodemographic data
@@ -26,6 +26,8 @@ lang: it #german is de, default is english
 ![Margarita:](images/pizza-margherita.jpg)
 
 ## Basic information
+
+
 
 ### Age
 
