@@ -17,9 +17,19 @@ format:
       body-width: 900px
       margin-width: 300px
       gutter-width: 1.5rem
+    code-tools: 
+     source: true
+     toggle: false
+     caption: This is my code
 lang: en #german is de, default is english
 citation-location: margin
 bibliography: references.bib
+execute: # alle Sachen für den Code können auch im code dann selbst festgelegt werden !
+  echo: fenced
+  message: true
+  error: true
+code-fold: true # false, wenn es nicht ausgeklappt werden soll
+code-summary: see this specific 
 ---
 
 ::: {.callout-note}
@@ -94,11 +104,82 @@ The VAS was conducted before and after experiment in both days.
 
 The neuronavigation data was analysed using following code
 
-```{r code}
+```{r code neuronavigation}
 #| echo: fenced
+#| eval: true # code is executed
 
-1+1
+library(readxl)
+data <- read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Neuronavigation/Neuronavigation_einschluss.xlsx")
+View(data)
+
+library(dplyr)
+
+# Euklidische Distanz pro Proband berechnen
+df_dist <- data %>%
+  group_by(vp, marker) %>%
+  summarise(
+    dist = sqrt((x[2] - x[1])^2 + (y[2] - y[1])^2 + (z[2] - z[1])^2),
+    .groups = "drop"
+  )
+
+# Ergebnis anzeigen
+print(df_dist)
+
+# Gemittelte Distanz über alle Proband*innen pro Marker
+df_mean <- df_dist %>%
+  group_by(marker) %>%
+  summarise(mean_dist = mean(dist))
+
+# Ergebnis anzeigen
+print(df_mean)
+df_mean
 ```
+
+Seeing results + code
+```{r code 1}
+#| echo: fenced
+#| eval: true # code is executed
+
+
+library(readxl)
+data <- read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Neuronavigation/Neuronavigation_einschluss.xlsx")
+
+head(data)
+str(data)
+summary(data)
+```
+
+Seeing just results
+
+```{r code 2}
+#| echo: true
+#| eval: true # code is executed
+
+
+library(readxl)
+data <- read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Neuronavigation/Neuronavigation_einschluss.xlsx")
+
+head(data)
+str(data)
+summary(data)
+```
+
+Seeing code without executing
+
+```{r code 3}
+#| echo: true
+#| eval: false # code is not executed
+
+
+library(readxl)
+data <- read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Neuronavigation/Neuronavigation_einschluss.xlsx")
+
+head(data)
+str(data)
+summary(data)
+```
+
+
 
 # Stroop data
 
