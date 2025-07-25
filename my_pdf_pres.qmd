@@ -13,6 +13,71 @@ The same code seen so far:
 large Large
 
 
+```{r}
+#| out-width: 30%
+#| fig-align: center
+#| fig-cap: "A pizza"
+#| label: fig-pea
+knitr::include_graphics("images/pizza-margherita.jpg")
+```
+
+```{r}
+#| eval: true
+#| include: false
+library(ggplot2)
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(plotly)
+library(patchwork)
+library(ggpubr)
+
+soz = read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Soziodemografische Daten/Soziodemografische_Daten_und_Einflussfaktoren.xlsx")
+
+vas = read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Soziodemografische Daten/Soziodemografische_Daten_und_Einflussfaktoren.xlsx", sheet = "VAS data")
+
+navi = read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Neuronavigation/Neuronavigation_IX_korrigiert.xlsx")
+
+daten_sum <- read_xlsx("~/Documents/Promotion/Studie 1/06_Data/SRTT/SRTT_time_sum.xlsx")
+
+
+# rename SM Group 
+soz$sm_group <- factor(soz$sm_group,
+                       levels = c(1, 2),
+                       labels = c("high", "low"))
+
+# changing sm_years_sum into numeric vector
+soz$sm_years_sum <- as.numeric(soz$sm_years_sum)
+
+```
+
+
+## Alter
+
+```{r}
+#| echo: false
+#| eval: true
+#| #fig-cap: A graph from mtcars
+#| #fig-cap-location: margin
+#| out-width: 50%
+#| label: Boxplot Alter der Proband*innen
+
+## === 2 Boxplots in einem Diagramm ===
+
+soz %>%
+  ggplot(aes(x = sm_group, y = age, fill = sm_group)) +
+  geom_boxplot(width = 0.6, 
+               outlier.shape = 16, 
+               outlier.size = 2, 
+               linetype = "solid", 
+               linewidth = 0.8) +
+  scale_fill_manual(values = c("azure4", "darkgoldenrod2")) +
+  labs(x = "SM-Nutzung", y = "Alter", title = "Alter nach SM-Nutzung") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+
 Quarto enables you to weave together content and executable code into a finished presentation. To learn more about Quarto presentations see <https://quarto.org/docs/presentations/>.
 
 ## Bullets

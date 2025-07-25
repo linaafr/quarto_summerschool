@@ -72,6 +72,7 @@ Es sind noch nicht alle. Deswegen siehst du hier die vorläufigen Ergebnisse.
 #| eval: true
 #| #fig-cap: A graph from mtcars
 #| #fig-cap-location: margin
+#| out-width: 50%
 #| label: Boxplot Alter der Proband*innen
 
 ## === 2 Boxplots in einem Diagramm ===
@@ -386,6 +387,7 @@ ggplotly(graph)
 ```{r}
 #| eval: true
 #| include: false
+#| out-width: 30%
 
 # Mergen von SM Data und SRTT
 
