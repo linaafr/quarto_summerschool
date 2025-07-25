@@ -4,11 +4,14 @@ format:
   beamer: 
     slide-level: 3
     theme: Berlin
-    colortheme: crane 
-  
+    colortheme: crane
 ---
 
 ## Quarto
+
+The same code seen so far:
+large Large
+
 
 Quarto enables you to weave together content and executable code into a finished presentation. To learn more about Quarto presentations see <https://quarto.org/docs/presentations/>.
 
@@ -27,5 +30,3 @@ When you click the **Render** button a presentation will be generated that inclu
 1 + 1
 ```
 
-
-install.packages("TinyTex")
