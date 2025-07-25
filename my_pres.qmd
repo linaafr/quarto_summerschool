@@ -11,6 +11,8 @@ format:
     footer: "Studie 1 Ergebnisse"
     slide-number: c/t
     show-slide-number: all
+    out-width: 80%                                
+    fig-align: center 
 ---
 
 ```{r}
