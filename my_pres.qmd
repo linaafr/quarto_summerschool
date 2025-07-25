@@ -70,8 +70,6 @@ Es sind noch nicht alle. Deswegen siehst du hier die vorläufigen Ergebnisse.
 ```{r}
 #| echo: false
 #| eval: true
-#| out-width: 100%                               
-#| fig-align: center                             
 #| #fig-cap: A graph from mtcars
 #| #fig-cap-location: margin
 #| label: Boxplot Alter der Proband*innen
@@ -99,9 +97,6 @@ Geschlecherverteilung in beiden SM-Nutzungsgruppen:
 ```{r}
 #| echo: false
 #| eval: true
-#| out-width: 100%                                
-#| fig-align: center                             
-#| #fig-cap: A graph from mtcars
 #| fig-cap-location: margin
 #| label: Person by Sex
 
@@ -134,10 +129,6 @@ BMI-Verteilung in den beiden Social-Media-Gruppen:
 ```{r}
 #| echo: false
 #| eval: true
-#| out-width: 100%                                
-#| fig-align: center                             
-#| #fig-cap: 
-#| #fig-cap-location: margin
 #| label: BMI
 
 # Plot: Histogramm + Normalverteilung
@@ -168,8 +159,6 @@ ggplotly(graph)
 ```{r}
 #| echo: false
 #| eval: true
-#| out-width: 100%                                
-#| fig-align: center                             
 #| label: sm_years
 
 graph <- soz %>%
@@ -194,8 +183,6 @@ Media and Technology Usage Scale
 ```{r}
 #| echo: false
 #| eval: true
-#| out-width: 100%                                
-#| fig-align: center                             
 #| label: mtuas
 
 graph <- soz %>%
@@ -219,8 +206,6 @@ Bergen Social Network Addiction Scale
 ```{r}
 #| echo: false
 #| eval: true
-#| out-width: 100%
-#| fig-align: center                                    
 #| label: bsnas
 
 graph <- soz %>%
@@ -353,7 +338,6 @@ head(daten_gesamt)
 ```
 
 ```{r}
-#| fig-align: center 
 ## ----------------------------------------------------------------------------
 ## PLOTTEN (ALLE)
 ## ----------------------------------------------------------------------------
