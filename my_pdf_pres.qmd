@@ -2,23 +2,48 @@
 title: "PDF presentation"
 format: 
   beamer: 
+    theme: metropolis
+    colortheme: seahorse
     slide-level: 3
-    theme: Berlin
-    colortheme: crane
+    toc: true
+    slide-number: true
+    fig-align: center
+    fig-cap-location: bottom
+    keep-tex: true
+    includes:
+    institute: "Universität Leipzig"
 ---
 
-## Pizza
+::: {.callout-note}
 
-I like pizza a lot. Here you can see some types of pizza:
+I am too uncreative to write such "funny" pizza descriptions. ChatGPT was just doing it for me ;)
+
+:::
+
+## Margerita
+
+The minimalist queen.
+Just tomato, mozzarella, and basil—because less is delicious. If this pizza could talk, it would whisper: "Simplicity is the ultimate topping."
 
 
 ```{r}
 #| out-width: 50%
 #| fig-align: center
-#| fig-cap: "A pizza"
-#| label: fig-pea
+#| fig-cap: "Pizza Margarita"
 knitr::include_graphics("images/pizza-margherita.jpg")
 ```
+## 4 Formaggi
+
+The cheese addict’s dream.
+Four cheeses, one goal: melt your heart (and your arteries). This pizza says: "I’m not lactose intolerant—you are."
+
+```{r formaggi}
+#| out-width: 70%
+#| fig-align: center
+#| fig-cap: "Pizza Quattro Formaggi"
+knitr::include_graphics("images/quattro.png.webp")
+```
+
 
 ```{r}
 #| eval: true
@@ -60,8 +85,6 @@ soz$sm_years_sum <- as.numeric(soz$sm_years_sum)
 #| #fig-cap-location: margin
 #| out-width: 50%
 #| label: Boxplot Alter der Proband*innen
-
-## === 2 Boxplots in einem Diagramm ===
 
 soz %>%
   ggplot(aes(x = sm_group, y = age, fill = sm_group)) +

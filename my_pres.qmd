@@ -185,6 +185,8 @@ Media and Technology Usage Scale
 #| echo: false
 #| eval: true
 #| label: mtuas
+#| fig-width: 6
+#| fig-height: 4
 
 graph <- soz %>%
   ggplot(aes(x = sm_group, y = mtuas, fill = sm_group)) +
@@ -339,6 +341,9 @@ head(daten_gesamt)
 ```
 
 ```{r}
+#| echo: false
+#| eval: true
+
 ## ----------------------------------------------------------------------------
 ## PLOTTEN (ALLE)
 ## ----------------------------------------------------------------------------
@@ -387,7 +392,6 @@ ggplotly(graph)
 ```{r}
 #| eval: true
 #| include: false
-#| out-width: 30%
 
 # Mergen von SM Data und SRTT
 
@@ -407,6 +411,9 @@ daten_gesamt <- daten_gesamt %>%
 ```
 
 ```{r}
+#| eval: true
+#| include: false
+
 ## ----------------------------------------------------------------------------
 ## PLOT SRTT TIMES DAY 1 (ABSOLUTE WERTE)
 ## ----------------------------------------------------------------------------
