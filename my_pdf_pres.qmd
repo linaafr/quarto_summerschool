@@ -1,6 +1,11 @@
 ---
 title: "PDF presentation"
-format: beamer
+format: 
+  beamer: 
+    slide-level: 3
+    theme: Berlin
+    colortheme: crane 
+  
 ---
 
 ## Quarto
@@ -23,3 +28,4 @@ When you click the **Render** button a presentation will be generated that inclu
 ```
 
 
+install.packages("TinyTex")
