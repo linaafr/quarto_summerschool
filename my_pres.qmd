@@ -1,8 +1,18 @@
 ---
 title: "Studie 1 Ergebnisse"
-format: revealjs
-author: "Lina Fricke"
+author: 
+  name: "Lina Fricke"
+  email: lina.fricke@uni-leipzig.de
+format: 
+  revealjs:
+    theme: [default, custom.scss]
+    self-contained: true
+    scrollable: true
+    footer: "Studie 1 Ergebnisse"
+    slide-number: c/t
+    show-slide-number: all
 ---
+
 ```{r}
 #| eval: true
 #| include: false
@@ -10,6 +20,9 @@ library(ggplot2)
 library(tidyverse)
 library(readxl)
 library(dplyr)
+library(plotly)
+library(patchwork)
+library(ggpubr)
 
 soz = read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Soziodemografische Daten/Soziodemografische_Daten_und_Einflussfaktoren.xlsx")
 
@@ -17,32 +30,40 @@ vas = read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Soziode
 
 navi = read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Neuronavigation/Neuronavigation_IX_korrigiert.xlsx")
 
+daten_sum <- read_xlsx("~/Documents/Promotion/Studie 1/06_Data/SRTT/SRTT_time_sum.xlsx")
+
 
 # rename SM Group 
 soz$sm_group <- factor(soz$sm_group,
                        levels = c(1, 2),
                        labels = c("high", "low"))
 
-# Falls nötig: umwandeln
+# changing sm_years_sum into numeric vector
 soz$sm_years_sum <- as.numeric(soz$sm_years_sum)
 
 ```
 
+# Fragebogenergebnisse
+
+## Proband*innen
+
+Es wurden `r nrow(soz)` gesunde Probanden erhoben, mit `r table(soz$sex)["weiblich"]` weiblichen und `r table(soz$sex)["männlich"]` männlichen Teilnehmer*innen. Pro Social-Media-Gruppe sind von `r table(soz$sm_group)["high"]` aus der High-Gruppe und `r table(soz$sm_group)["low"]` aus der Low-Gruppe vollständige Datensätze vorhanden.
+
+
+
 ::: {.callout-note}
-Es sind noch nicht alle Daten analysiert. Deswegen siehst du hier die vorläufigen Ergebnisse.
+
+Es sind noch nicht alle. Deswegen siehst du hier die vorläufigen Ergebnisse.
+
 :::
 
-# Soziodemografische Daten
 
-Es wurden `r nrow(soz)` gesunde Probanden erhoben, mit `r table(soz$sex)["weiblich"]` weiblichen und `r table(soz$sex)["männlich"]` männlichen Teilnehmer*innen.  
-Pro Social-Media-Gruppe sind von `r table(soz$sm_group)["high"]` aus der High-Gruppe und `r table(soz$sm_group)["low"]` aus der Low-Gruppe vollständige Datensätze vorhanden.
 
+## Soziodemografische Daten
 
 ::: {.panel-tabset}
 
-# Soziodemografische Daten
-
-### Alter
+## Alter
 
 ```{r}
 #| echo: false
@@ -54,14 +75,23 @@ Pro Social-Media-Gruppe sind von `r table(soz$sm_group)["high"]` aus der High-Gr
 #| label: Boxplot Alter der Proband*innen
 
 ## === 2 Boxplots in einem Diagramm ===
-boxplot(formula = soz$age ~ soz$sm_group, 
-        col = c("azure4", "darkgoldenrod2"),
-        xlab = "SM-Nutzung", ylab = "Alter",
-        theme = theme_minimal())
+
+graph <- soz %>%
+  ggplot(aes(x = sm_group, y = age, fill = sm_group)) +
+  geom_boxplot(width = 0.6, 
+               outlier.shape = 16, 
+               outlier.size = 2, 
+               linetype = "solid", 
+               linewidth = 0.8) +
+  scale_fill_manual(values = c("azure4", "darkgoldenrod2")) +
+  labs(x = "SM-Nutzung", y = "Alter", title = "Alter nach SM-Nutzung") +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggplotly(graph)
 ```
 
 
-### Geschlecht
+## Geschlecht
 
 Geschlecherverteilung in beiden SM-Nutzungsgruppen:
 ```{r}
@@ -80,27 +110,24 @@ filter(!is.na(sm_group), !is.na(sex)) %>%
 
 tab <- table(soz_clean$sm_group, soz_clean$sex)
 prop_tab <- prop.table(tab, margin = 1) * 100
-prop_tab_t <- t(prop_tab)
 
-barplot(height = prop_tab_t,
-        beside = TRUE,
-        col = c("azure2", "darkgoldenrod1"),
-        border = "black",
-        ylab = "Prozent",
-        xlab = "SM-Nutzung",
-        ylim = c(0, 60),
-        names.arg = rownames(tab),
-        legend.text = rownames(prop_tab_t),
-        args.legend = list(title = "Geschlecht", x = "bottomleft"))
-      theme = theme_minimal()
+df <- as.data.frame(prop_tab)
+colnames(df) <- c("SM_Nutzung", "Geschlecht", "Prozent")
+
+barplot_gg <- ggplot(df, aes(x = SM_Nutzung, y = Prozent, fill = Geschlecht)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  scale_fill_manual(values = c("azure2", "darkgoldenrod1")) +
+  labs(x = "SM-Nutzung", y = "Prozent") +
+  ylim(0, 60) +
+  theme_minimal()
+ggplotly(barplot_gg)
        
 ```
 
 
+## BMI
 
-### BMI
-
-Hier ist die BMI-Verteilung dargestellt.
+BMI-Verteilung in den beiden Social-Media-Gruppen:
 
 ```{r}
 #| echo: false
@@ -113,86 +140,424 @@ Hier ist die BMI-Verteilung dargestellt.
 
 # Plot: Histogramm + Normalverteilung
 ## === 2 Boxplots in einem Diagramm ===
-boxplot(formula = soz$bmi ~ soz$sm_group, 
-        col = c("azure4", "darkgoldenrod2"),
-        xlab = "SM-Nutzung", ylab = "BMI")
+
+graph <- soz %>%
+  ggplot(aes(x = sm_group, y = bmi, fill = sm_group)) +
+  geom_boxplot(width = 0.6, 
+               outlier.shape = 16, 
+               outlier.size = 2, 
+               linetype = "solid", 
+               linewidth = 0.8) +
+  scale_fill_manual(values = c("azure4", "darkgoldenrod2")) +
+  labs(x = "SM-Nutzung", y = "BMI") +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggplotly(graph)
 ```
 
 :::
 
 
-
-
-## Social Media Behavior
+## SM-Verhalten
 
 ::: {.panel-tabset}
 
-### Jahre
-```{r sm jahre plot}
+## Jahre der SM-Nutzung
+```{r}
 #| echo: false
 #| eval: true
 #| out-width: 100%                                
 #| fig-align: center                             
 #| label: sm_years
 
-## === 2 Boxplots in einem Diagramm ===
-boxplot(formula = soz$sm_years_sum ~ soz$sm_group, 
-        col = c("azure4", "darkgoldenrod2"),
-        xlab = "SM-Nutzung", 
-        ylab = "Jahre Nutzung (Summe privat & dienstl. Nutzung)")
+graph <- soz %>%
+  ggplot(aes(x = sm_group, y = sm_years_sum, fill = sm_group)) +
+  geom_boxplot(width = 0.6, 
+               outlier.shape = 16, 
+               outlier.size = 2, 
+               linetype = "solid", 
+               linewidth = 0.8) +
+  scale_fill_manual(values = c("azure4", "darkgoldenrod2")) +
+  labs(x = "SM-Nutzung", y = "Summe Jahre SM-Nutzung") +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggplotly(graph)
 
 ```
 
-### MTUAS
+## MTUAS 
 
-```{r mtuas plot}
+Media and Technology Usage Scale
+
+```{r}
 #| echo: false
 #| eval: true
 #| out-width: 100%                                
 #| fig-align: center                             
 #| label: mtuas
 
-## === 2 Boxplots in einem Diagramm ===
-boxplot(formula = soz$mtuas ~ soz$sm_group, 
-        col = c("azure4", "darkgoldenrod2"),
-        xlab = "SM-Nutzung", 
-        ylab = "MTUAS-Score")
+graph <- soz %>%
+  ggplot(aes(x = sm_group, y = mtuas, fill = sm_group)) +
+  geom_boxplot(width = 0.6, 
+               outlier.shape = 16, 
+               outlier.size = 2, 
+               linetype = "solid", 
+               linewidth = 0.8) +
+  scale_fill_manual(values = c("azure4", "darkgoldenrod2")) +
+  labs(x = "SM-Nutzung", y = "MTUAS-Score") +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggplotly(graph)
 ```
 
-### BSNAS
+## BSNAS 
 
-```{r bsnas plot}
+Bergen Social Network Addiction Scale
+
+```{r}
 #| echo: false
 #| eval: true
-#| out-width: 100%                                
+#| out-width: 100%
+#| fig-align: center                                    
 #| label: bsnas
 
-## === 2 Boxplots in einem Diagramm ===
-boxplot(formula = soz$bsnas ~ soz$sm_group, 
-        col = c("azure4", "darkgoldenrod2"),
-        xlab = "SM-Nutzung", 
-        ylab = "BSNAS-Score")
+graph <- soz %>%
+  ggplot(aes(x = sm_group, y = bsnas, fill = sm_group)) +
+  geom_boxplot(width = 0.6, 
+               outlier.shape = 16, 
+               outlier.size = 2, 
+               linetype = "solid", 
+               linewidth = 0.8) +
+  scale_fill_manual(values = c("azure4", "darkgoldenrod2")) +
+  labs(x = "SM-Nutzung", y = "BSNAS-Score") +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggplotly(graph)
 ```
 
 :::
 
-## Quarto
+# Ergebnisse SRTT
 
-Quarto enables you to weave together content and executable code into a finished presentation. To learn more about Quarto presentations see <https://quarto.org/docs/presentations/>.
-
-## Bullets
-
-When you click the **Render** button a document will be generated that includes:
-
--   Content authored with markdown
--   Output from executable code
-
-## Code
-
-When you click the **Render** button a presentation will be generated that includes both content and the output of embedded code. You can embed code like this:
+## SRTT-Daten über alle Proband*innen Tag 1 und Tag 2
 
 ```{r}
-1 + 1
+#| eval: true
+#| include: false
+
+## ----------------------------------------------------------------------------
+## PREPROCESSING DATA SUM 
+## ----------------------------------------------------------------------------
+
+daten_sum <- daten_sum[rowSums(is.na(daten_sum)) != ncol(daten_sum), ]
+daten_sum[daten_sum == "NaN"] <- NA
+
+daten_long <- daten_sum %>%
+  pivot_longer(
+    cols = starts_with("VP"), 
+    names_to = c("Proband", "Zeitpunkt"),  
+    names_pattern = "VP(\\d+)-(\\d)",  
+    values_to = "time_sum"
+  ) %>%
+  mutate(time_sum = as.numeric(time_sum))
+
+daten_sum <- daten_long %>%
+  group_by(Proband, Zeitpunkt, Block) %>%
+  summarise(time_sum = mean(time_sum, na.rm = TRUE), .groups = "drop")
+
+
+## ----------------------------------------------------------------------------
+## PREPROCESSING DATA_MOT
+## ----------------------------------------------------------------------------
+
+# Motorische Daten einlesen
+daten_mot <- read_xlsx("~/Documents/Promotion/Studie 1/06_Data/SRTT/SRTT_time_motor.xlsx")
+daten_mot <- daten_mot[rowSums(is.na(daten_mot)) != ncol(daten_mot), ]
+daten_mot[daten_mot == "NaN"] <- NA
+
+daten_mot_long <- daten_mot %>%
+  pivot_longer(
+    cols = -Block,  
+    names_to = "Proband_Messzeitpunkt",
+    values_to = "time_sum"
+  ) %>%
+  mutate(
+    Proband = gsub("VP", "", sub("-.*", "", Proband_Messzeitpunkt)),  
+    Messzeitpunkt = gsub(".*-(\\d).*", "\\1", Proband_Messzeitpunkt)  
+  ) %>%
+  select(Block, Proband, Messzeitpunkt, time_sum)
+
+daten_mot_long$time_sum <- as.numeric(daten_mot_long$time_sum)
+daten_mot <- daten_mot_long %>%
+  group_by(Block, Messzeitpunkt, Proband) %>%
+  summarise(time_sum_mot = mean(time_sum, na.rm = TRUE), .groups = "drop")
+
+
+## ----------------------------------------------------------------------------
+## PREPROCESSING DATA_COG
+## ----------------------------------------------------------------------------
+
+# Kognitive Daten einlesen
+daten_cog <- read_xlsx("~/Documents/Promotion/Studie 1/06_Data/SRTT/SRTT_time_cog.xlsx")
+daten_cog <- daten_cog[rowSums(is.na(daten_cog)) != ncol(daten_cog), ]
+daten_cog[daten_cog == "NaN"] <- NA
+daten_cog[, -1] <- lapply(daten_cog[, -1], as.numeric)
+
+daten_cog_long <- daten_cog %>%
+  pivot_longer(
+    cols = -Block,  
+    names_to = "Proband_Messzeitpunkt",
+    values_to = "time_sum"
+  ) %>%
+  mutate(
+    Proband = gsub("VP", "", sub("-.*", "", Proband_Messzeitpunkt)),  
+    Messzeitpunkt = gsub(".*-(\\d).*", "\\1", Proband_Messzeitpunkt)  
+  ) %>%
+  select(Block, Proband, Messzeitpunkt, time_sum)
+
+daten_cog_long$time_sum <- as.numeric(daten_cog_long$time_sum)
+daten_cog <- daten_cog_long %>%
+  group_by(Block, Messzeitpunkt, Proband) %>%
+  summarise(time_sum_cog = mean(time_sum, na.rm = TRUE), .groups = "drop")
+
+
+## ----------------------------------------------------------------------------
+## MERGING DATA SETS
+## ----------------------------------------------------------------------------
+
+
+# Datensätze zusammenführen
+daten_gesamt <- daten_sum %>%
+  left_join(daten_mot, by = c("Block", "Proband", "Zeitpunkt" = "Messzeitpunkt")) %>%
+  left_join(daten_cog, by = c("Block", "Proband", "Zeitpunkt" = "Messzeitpunkt"))
+
+#Datensätze zusammenfügen 
+rm(daten_cog_long, daten_mot_long, daten_long)
+
+
+# Umbenennen der Variablen, nur wenn sie existieren
+daten_cog <- daten_cog %>% rename(time_sum_cog = time_sum_cog) # Hier kannst du den Namen beibehalten oder nach Bedarf umbenennen
+daten_mot <- daten_mot %>% rename(time_sum_mot = time_sum_mot)
+daten_sum <- daten_sum %>% rename(time_sum = time_sum)
+daten_sum <- daten_sum %>% rename(Messzeitpunkt = Zeitpunkt)
+
+# Zusammenführen der Datensätze nach Proband, Block & Messzeitpunkt
+daten_gesamt <- daten_cog %>%
+  full_join(daten_mot, by = c("Proband", "Block", "Messzeitpunkt")) %>%
+  full_join(daten_sum, by = c("Proband", "Block", "Messzeitpunkt"))
+
+# Überprüfen, ob alles korrekt zusammengeführt wurde
+head(daten_gesamt)
 ```
+
+```{r}
+#| fig-align: center 
+## ----------------------------------------------------------------------------
+## PLOTTEN (ALLE)
+## ----------------------------------------------------------------------------
+daten_gesamt[daten_gesamt == "NaN"] <- NA
+
+#Mittelwerte für den Datensatz berechnen
+daten_mittelwerte <- daten_gesamt %>%
+  group_by(Block, Messzeitpunkt) %>%
+  summarise(time_sum = mean(time_sum, na.rm = TRUE), .groups = "drop")
+
+graph = ggplot(daten_mittelwerte, 
+       aes(x = Block, 
+           y = time_sum,
+           color = Messzeitpunkt,
+           group = Messzeitpunkt)) +
+  geom_line() +                           
+  geom_point() +                    
+  labs(
+    x = "Sequenzen", 
+    y = "Mittlere Reaktionszeit (ms)",
+    color = "Tag:")+  # Legendentitel hier definieren
+  scale_x_continuous(
+    breaks = 1:17,
+    labels = c("R1", "L1", "L2", "L3", "R4", "L5", "L6", "L7", "L8", 
+               "L9", "L10", "L11", "L12", "L13", "L14", "L15", "R2")
+  ) +
+  scale_color_manual(
+    values = c("azure4", "darkgoldenrod2"), 
+    labels = c("Tag 1", "Tag 2")
+  ) +
+  theme_minimal(base_size = 10) +  # Schriftart entfernen falls nicht installiert
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 10),
+    panel.grid.major = element_line(color = "grey85", size = 0.3),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(size = 11, color = "black"),
+    axis.title = element_text(size = 11, face = "bold"),
+  )
+ggplotly(graph)
+```
+
+## SRTT-Daten Tag 1, geteilt nach SM-Nutzung
+
+```{r}
+#| eval: true
+#| include: false
+
+# Mergen von SM Data und SRTT
+
+daten_gesamt <- daten_gesamt %>%
+  rename(vp= Proband)
+
+daten_gesamt <- daten_gesamt %>%
+  mutate(vp = paste0("vp", str_pad(vp, 2, pad = "0")))
+
+# Nur relevante Spalten aus soz verwenden
+soz_slim <- soz %>%
+  select(vp, sm_group)
+
+# Join mit daten_gesamt auf 'vp'
+daten_gesamt <- daten_gesamt %>%
+  left_join(soz_slim, by = "vp")
+```
+
+```{r}
+## ----------------------------------------------------------------------------
+## PLOT SRTT TIMES DAY 1 (ABSOLUTE WERTE)
+## ----------------------------------------------------------------------------
+
+# Filter data for Day 1 and calculate mean time_sum for each group
+daten_tag1 <- daten_gesamt %>%
+  filter(Messzeitpunkt == "1") %>%
+  group_by(Block, sm_group) %>%
+  summarise(mean_time = mean(time_sum, na.rm = TRUE),
+            sd_time = sd(time_sum, na.rm = TRUE),
+            .groups = "drop")
+
+# Create the plot
+graph = ggplot(daten_tag1, 
+       aes(x = Block, 
+           y = mean_time,
+           color = sm_group,
+           group = sm_group)) +
+  geom_line() +                           
+  geom_point() +                    
+  # geom_errorbar(aes(ymin = mean_time - sd_time, 
+                  #  ymax = mean_time + sd_time),
+                # width = 0.2, size = 0.5) +        
+  labs(
+    x = "Sequenzen", 
+    y = "Mittlere Reaktionszeit (ms)",
+    color = "SM-Nutzung"
+  ) +
+  scale_x_continuous(
+    breaks = 1:17,
+    labels = c("R1", "L1", "L2", "L3", "R4", "L5", "L6", "L7", "L8", 
+               "L9", "L10", "L11", "L12", "L13", "L14", "L15", "R2")
+  ) +
+  scale_color_manual(
+    values = c("darkgoldenrod2", "azure4"), 
+    labels = c("Low", "High")
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 10),
+    panel.grid.major = element_line(color = "grey85", size = 0.3),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(size = 11, color = "black"),
+    axis.title = element_text(size = 11, face = "bold")
+  )
+ggplotly(graph)
+```
+
+## SRTT-Daten Tag 2, geteilt nach SM-Nutzung
+
+```{r}
+## ----------------------------------------------------------------------------
+## PLOT SRTT TIMES DAY 2 (ABSOLUTE WERTE)
+## ----------------------------------------------------------------------------
+
+# Filter data for Day 2 and calculate mean time_sum for each group
+daten_tag2 <- daten_gesamt %>%
+  filter(Messzeitpunkt == "2") %>%
+  group_by(Block, sm_group) %>%
+  summarise(mean_time = mean(time_sum, na.rm = TRUE),
+            sd_time = sd(time_sum, na.rm = TRUE),
+            .groups = "drop")
+
+# Create the plot
+graph = ggplot(daten_tag2, 
+       aes(x = Block, 
+           y = mean_time,
+           color = sm_group,
+           group = sm_group)) +
+  geom_line() +                           
+  geom_point() +                    
+  # geom_errorbar(aes(ymin = mean_time - sd_time, 
+                  #  ymax = mean_time + sd_time),
+                # width = 0.2, size = 0.5) +        
+  labs(
+    x = "Sequenzen", 
+    y = "Mittlere Reaktionszeit (ms)",
+    color = "SM-Nutzung"
+  ) +
+  scale_x_continuous(
+    breaks = 1:17,
+    labels = c("R1", "L1", "L2", "L3", "R4", "L5", "L6", "L7", "L8", 
+               "L9", "L10", "L11", "L12", "L13", "L14", "L15", "R2")
+  ) +
+  scale_color_manual(
+    values = c("darkgoldenrod2", "azure4"), 
+    labels = c("Low", "High")
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 10),
+    panel.grid.major = element_line(color = "grey85", size = 0.3),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(size = 11, color = "black"),
+    axis.title = element_text(size = 11, face = "bold")
+  )
+ggplotly(graph)
+```
+
+## Euklidische Distanz in der Neuonavigation 
+
+```{r}
+#| include: false
+library(DT)
+library(knitr)
+library(readxl)
+library(dplyr)
+
+
+# Euklidische Distanz pro Proband berechnen
+df_dist <- navi %>%
+  group_by(vp, marker) %>%
+  summarise(
+    dist = sqrt((x[2] - x[1])^2 + (y[2] - y[1])^2 + (z[2] - z[1])^2),
+    .groups = "drop"
+  )
+
+# Gemittelte Distanz über alle Proband*innen pro Marker
+df_mean <- df_dist %>%
+  group_by(marker) %>%
+  summarise(mean_dist = mean(dist))
+
+df_mean <- df_mean %>%
+  arrange(desc(mean_dist)) %>%
+  mutate(marker = factor(marker, levels = marker))
+```
+
+
+```{r}
+#| eval: true # code is executed
+#| label: tbl-neuronavigation
+#| tbl-cap: "Durchschnittliche euklidische Distanz"
+
+datatable(df_mean)
+```
+
+
+
 
 

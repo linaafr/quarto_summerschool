@@ -56,19 +56,21 @@ soz$sm_group <- factor(soz$sm_group,
 # Falls nötig: umwandeln
 soz$sm_years_sum <- as.numeric(soz$sm_years_sum)
 
-vas <- vas %>%
-  left_join(soz %>% select(vp, sm_group), by = "vp")
-
 ```
 
 ::: {.callout-note}
 Es sind noch nicht alle Daten analysiert. Deswegen siehst du hier die vorläufigen Ergebnisse.
 :::
 
+
 # Soziodemografische Daten
 
 Es wurden `r nrow(soz)` gesunde Probanden erhoben, mit `r table(soz$sex)["weiblich"]` weiblichen und `r table(soz$sex)["männlich"]` männlichen Teilnehmer*innen.  
 Pro Social-Media-Gruppe sind von `r table(soz$sm_group)["high"]` aus der High-Gruppe und `r table(soz$sm_group)["low"]` aus der Low-Gruppe vollständige Datensätze vorhanden.
+
+::: {.fragment .highlight-red}
+This text will turn red
+:::
 
 
 ::: {.panel-tabset}
@@ -214,14 +216,6 @@ boxplot(formula = soz$bsnas ~ soz$sm_group,
 
 Mithilfe von VAS wurden Aufmerksamkeit, MÜdigkeit und Schmerzen jeweils vor und nach dem Experiment erhoben.
 
-```{r}
-ggplot(data = vas, 
-       mapping = aes(x = Time, y = mean, color = Group)) + 
-  geom_line() +
-   geom_point(aes(fill=_group),
-              shape=21) +
-  geom_errorbar(aes(ymin=rtwc_between$mean-ci_quantile*rtwc_between$sd/sqrt(25-1), ymax=rtwc_between$mean+ci_quantile*rtwc_between$sd/sqrt(25-1), color = Group), width=.1)
-```
 
 
 
@@ -267,6 +261,7 @@ library(DT)
 library(knitr)
 library(readxl)
 library(dplyr)
+library(plotly)
 
 data = read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Neuronavigation/Neuronavigation_IX_korrigiert.xlsx")
 
