@@ -1,17 +1,18 @@
 ---
-title: "Results Study 1"
+title: "Ergebnisse Studie 1"
 author: "Lina Fricke"
-date: today # the file we be printed with the todays date
+date: today 
 format: 
-  html: # can also be pdf, just write 'pdf' 
-    self-contained: true # now I can send the html-file to someone else, not just a code
-    toc: true # table of content in line 8
+  html:
+    self-contained: true 
+    toc: true 
     toc-title: My contents
-    toc-location: left # on the left side of the document
+    toc-location: left 
     theme: 
       dark: superhero
       light: minty
-    fontsize: 32 px # de
+    fontsize: 32 px 
+    font-family: Roboto
     grid:
       sidebar-width: 300px
       body-width: 900px
@@ -21,15 +22,15 @@ format:
      source: true
      toggle: false
      caption: This is my code
-lang: de #german is de, default is english
+lang: de
 citation-location: margin
 bibliography: references.bib
-execute: # alle Sachen für den Code können auch im code dann selbst festgelegt werden !
+execute: 
   echo: fenced
   warning: false
   messages: false
   error: true
-code-fold: true # false, wenn es nicht ausgeklappt werden soll
+code-fold: true
 code-summary: Hier siehst du den Code... 
 ---
 
@@ -43,7 +44,7 @@ library(dplyr)
 library(plotly)
 
 soz = read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Soziodemografische Daten/Soziodemografische_Daten_und_Einflussfaktoren.xlsx")
-
+soz
 vas = read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Soziodemografische Daten/Soziodemografische_Daten_und_Einflussfaktoren.xlsx", sheet = "VAS data")
 
 navi = read_excel("/Users/linafricke/Documents/Promotion/Studie 1/06_Data/Neuronavigation/Neuronavigation_IX_korrigiert.xlsx")
@@ -265,6 +266,8 @@ Mithilfe von VAS wurden Aufmerksamkeit, MÜdigkeit und Schmerzen jeweils vor und
 
 
 
+
+
 ### Müdigkeit
 
 
@@ -275,13 +278,89 @@ Mithilfe von VAS wurden Aufmerksamkeit, MÜdigkeit und Schmerzen jeweils vor und
 :::
 
 
-## Other influencing factors
+## Andere Einflussfaktoren
 
 ::: {.panel-tabset}
 
 ### Sleep
 
+```{r}
+#| echo: false
+#| eval: true
+#| out-width: 30%                               
+#| fig-align: left 
+#| layout-ncol: 3                            
+
+
+## === 2 Boxplots in einem Diagramm ===
+graph <- soz %>%
+  ggplot(aes(x = sm_group, y = sleep_general, fill = sm_group)) +
+  geom_boxplot(width = 0.6, 
+               outlier.shape = 16, 
+               outlier.size = 2, 
+               linetype = "solid", 
+               linewidth = 0.8)+
+  scale_fill_manual(values = c("azure4", "darkgoldenrod2")) +
+  labs(x = "SM-Nutzung", y = "Schlaf generell (h)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggplotly(graph)
+
+## === 2 Boxplots in einem Diagramm ===
+graph1 <- soz %>%
+  ggplot(aes(x = sm_group, y = sleep_d01, fill = sm_group)) +
+  geom_boxplot(width = 0.6, 
+               outlier.shape = 16, 
+               outlier.size = 2, 
+               linetype = "solid", 
+               linewidth = 0.8)+
+  scale_fill_manual(values = c("azure4", "darkgoldenrod2")) +
+  labs(x = "SM-Nutzung", y = "Schlaf Experimentaltag 1 (h)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggplotly(graph1)
+
+## === 2 Boxplots in einem Diagramm ===
+graph2 <- soz %>%
+  ggplot(aes(x = sm_group, y = sleep_d02, fill = sm_group)) +
+  geom_boxplot(width = 0.6, 
+               outlier.shape = 16, 
+               outlier.size = 2, 
+               linetype = "solid", 
+               linewidth = 0.8)+
+  scale_fill_manual(values = c("azure4", "darkgoldenrod2")) +
+  labs(x = "SM-Nutzung", y = "Schlaf Experimentaltag 2 (h)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggplotly(graph2)
+
+```
+
+
+
 ### Playing Computer Games
+
+```{r}
+#| echo: false
+#| eval: true
+#| out-width: 100%                               
+#| fig-align: center                             
+
+
+## === 2 Boxplots in einem Diagramm ===
+graph <- soz %>%
+  ggplot(aes(x = sm_group, y = sleep_general, fill = sm_group)) +
+  geom_boxplot(width = 0.6, 
+               outlier.shape = 16, 
+               outlier.size = 2, 
+               linetype = "solid", 
+               linewidth = 0.8) +
+  scale_fill_manual(values = c("azure4", "darkgoldenrod2")) +
+  labs(x = "SM-Nutzung", y = "Schlaf generell (h)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggplotly(graph)
+```
 
 ### Instrument and Sport
 
@@ -668,25 +747,8 @@ Die Kappe wurde mithilfe von Neuronavigation an beiden Tagen an `r nrow(data)` P
 
 
 
-<!-- # Stroop data -->
-
-<!-- The Stroop test was initially invented by Stroop [@rsoft]. -->
-
-<!-- # SRTT data -->
-
-<!-- ## Not-divided into groups -->
-
-<!-- ### Day 1 -->
-
-<!-- ### Day 2 -->
-
-<!-- ## Divided into groups -->
-
-<!-- ### Day 1 -->
-
-<!-- ### Day 2 -->
-
-<!-- ## Memorized sequence -->
+# Stroop data 
+The Stroop test was initially invented by Stroop [@rsoft].
 
 
 
