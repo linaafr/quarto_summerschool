@@ -736,7 +736,7 @@ Die Kappe wurde mithilfe von Neuronavigation an beiden Tagen an `r nrow(data)` P
 #| eval: true # code is executed
 #| tbl-cap: "Durchschnittliche euklidische Distanz"
 
-# datatable(df_mean)
+datatable(df_mean)
   
 
 ```
