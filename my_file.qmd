@@ -744,9 +744,6 @@ datatable(df_mean)
 
 
 
-
-
-
 # Stroop data 
 The Stroop test was initially invented by Stroop [@rsoft].
 
