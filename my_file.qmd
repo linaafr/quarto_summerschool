@@ -6,7 +6,7 @@ format:
   html:
     self-contained: true 
     toc: true 
-    toc-title: My contents
+    toc-title: Inhalt
     toc-location: left 
     theme: 
       dark: superhero
