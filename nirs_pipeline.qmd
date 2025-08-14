@@ -1,0 +1,126 @@
+---
+title: "NIRS Pipeline"
+author: Lina Fricke
+date: today
+format: 
+  html: 
+    self-contained: true 
+    toc: true 
+    toc-title: Inhalt
+    toc-location: left 
+    theme: 
+      light: minty
+    fontsize: 32 px 
+    font-family: Roboto
+    grid:
+      sidebar-width: 300px
+      body-width: 900px
+      margin-width: 300px
+      gutter-width: 1.5rem
+    code-tools: 
+     source: true
+     toggle: false
+     caption: This is my code
+lang: eng
+bibliography: nirs_references.bib
+citation-location: margin
+execute: 
+  echo: fenced
+  warning: false
+  messages: false
+  error: true
+code-fold: false
+---
+
+## Data Quality 
+
+Data quality was assessed with the QT NIRS Toolbox [@hernandez2020nirsplot] that combines SCI and PSP. 
+
+### Cutting the signal
+
+As I am just interested in the data quality of the activity, I cut the baseline measurement that was done before the activity.
+
+
+
+
+## Preprocessing
+
+#### Loading useful toolboxes
+```{matlab}
+#| eval: false
+#| echo: true
+
+% Homer3 ------------------------------------------------------------------
+% Path to the Homer folder
+dir_homer = ['/Users/linafricke/Documents/MATLAB/Homer3-1.80.2'];
+% Add Homer3
+cd(dir_homer)
+setpaths
+
+% Add a folder and subfolders with some extra custom functions ------------
+dir_extracodes = '/Users/linafricke/Desktop/fnirs course/extra_codes';
+addpath(genpath(dir_extracodes))
+```
+
+#### Defining working path directory
+```{matlab}
+% Define a main folder
+folder_main = '/Users/linafricke/Desktop/NIRS data/einschluss-70-70/high';
+
+% Set the folder with the codes as the current directory
+cd(fullfile(folder_main))
+
+% Path to the input data folder (data in dir_dataraw\<subject-folder>\nirs)
+dir_data_raw  = fullfile(folder_main);
+
+% Path to the output data folder
+dir_data_pp  = fullfile('/Users/linafricke/Desktop/NIRS data/');
+
+% Define a main folder and set as current directory
+folder_main = '/Users/linafricke/Desktop/NIRS data/einschluss-70-70';
+cd(fullfile(folder_main))
+
+% subjects to analysze (subfolders in dir_dataraw)
+
+subjects = {
+    'vp02';...
+    'vp03';...
+    'vp04';...
+    % 'vp07';...
+    % 'vp08';...
+    % 'vp10';...
+    % 'vp11';...
+    % 'vp13';...
+    % 'vp15';...
+    };
+```
+ 
+Here we had 2 measurements (day 1 and day 2) for each subject. Depending on 
+```{matlab}
+for i = 1:length(subjects)
+    subj = subjects{i};
+    
+    % Pfad zum spezifischen Datenordner (z. B. .../vp02/vp02_D01)
+    sub_data_folder = fullfile(folder_main, subj, [upper(subj) '_D01']);
+     
+    % % Pfad zum spezifischen Datenordner (z. B. .../vp02/vp02_D02)
+    % sub_data_folder = fullfile(folder_main, subj, [upper(subj) '_D02']);
+
+    % Existiert der Ordner?
+    if ~isfolder(sub_data_folder)
+        warning('Ordner nicht gefunden: %s', sub_data_folder);
+        continue;
+    end
+end
+```
+
+
+
+You can add options to executable code like this 
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).

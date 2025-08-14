@@ -22,6 +22,7 @@ format:
      toggle: false
      caption: This is my code
 lang: de
+bibliography: dart_references.bib
 citation-location: margin
 execute: 
   echo: fenced
@@ -50,14 +51,21 @@ library(afex)
 library(emmeans)
 library(ez)
 
-darts = read_excel("/Users/linafricke/Documents/Promotion/Studie 2 /1_Pilotstudien/Pilot 2/Pilot_2_Übersicht.xlsx")
+darts = read_excel("/Users/linafricke/Documents/Promotion/Studie 2 /1_Pilotstudien/Pilot 2/Pilot_2_Übersicht.xlsx", sheet = "young")
+
+darts_old = read_excel("/Users/linafricke/Documents/Promotion/Studie 2 /1_Pilotstudien/Pilot 2/Pilot_2_Übersicht.xlsx", sheet="old")
 
 ```
 
 ::: {.callout-important}
-Es wurden bisher _n_=`r (ncol(darts)-2)/2` Proband*innen erhoben.
+Es wurden bisher _n_=`r (ncol(darts)-2)/2` junge und _n_=`r (ncol(darts_old)-2)/2` alte Proband*innen erhoben. 
 :::
 
+## Literatur
+
+* 6 Blöcke á 25 Würfe = **150 Würfe** [@mizuguchi2018effect]. 
+* 15-25 Würfe (Pre-Test, 4 Quartile, Post-Test; 6 Blöcke) = **90-130 Würfe** [@meek2021anodal]
+* Ich 🙂 → 20 Blöcke á 8 Würfe = **160 Würfe**
 
 ```{r}
 #| eval: true
@@ -205,12 +213,103 @@ darts_summary <- darts_distance %>%
     .groups = "drop"
   )
 ```
-# Daten (Block 1-20)
+
+```{r}
+#| eval: true
+#| include: false
+
+# und genau die Präprozessierung mache ich für die alten Personen
+
+# Daten säubern und long-format erzeugen
+darts_old_clean = darts_old %>%
+  mutate(across(starts_with("vp"), ~ as.numeric(str_trim(.)))) %>%
+  mutate(across(starts_with("vp"), ~ ifelse(is.nan(.), NA, .)))
+
+long_darts_old = darts_old_clean %>%
+  pivot_longer(cols = starts_with("vp"),
+               names_to = c("VP", ".value"),
+               names_pattern = "vp(..)([xy])") %>%
+  rename(x = x, y = y) %>%
+  mutate(VP = paste0("vp", VP)) %>%
+  arrange(VP, Block, Wurf)
+
+# Referenzpunkte: Block 0, Wurf 0
+bull_old = long_darts_old %>%
+  filter(Block == 0, Wurf == 0) %>%
+  select(VP, X_ref = x, Y_ref = y)
+
+# Distanzen berechnen
+darts_old_distance = long_darts_old %>%
+  left_join(bull_old) %>%
+  mutate(distance = sqrt((x - X_ref)^2 + (y - Y_ref)^2))
+
+colnames(darts_old_distance)[1:3] = c("block", "number", "vp")
+
+# Referenzkoordinaten wieder löschen
+darts_old_distance = darts_old_distance %>%
+  select(-X_ref, -Y_ref)
+
+# Mittelwert
+mean_distance_old = darts_old_distance %>%
+  filter(number %in% 1:8) %>%
+  group_by(vp, block) %>%
+  summarise(mean_distance = mean(distance, na.rm = TRUE), .groups = "drop")
+
+# Median
+median_distance_old = darts_old_distance %>%
+  filter(number %in% 1:8) %>%
+  group_by(vp, block) %>%
+  summarise(median_distance = median(distance, na.rm = TRUE), .groups = "drop")
+
+# Wide-Format
+mittelwerte_old_wide <- mean_distance_old %>%
+  pivot_wider(names_from = vp, values_from = mean_distance)
+
+median_old_wide <- median_distance_old %>%
+  pivot_wider(names_from = vp, values_from = median_distance)
+
+# Transponieren Mittelwert
+transpose_mean_old <- mittelwerte_old_wide %>%
+  select(-block) %>%
+  t() %>%
+  as.data.frame()
+colnames(transpose_mean_old) <- paste0("AvgB_", unique(mittelwerte_old_wide$block))
+transpose_mean_old$VP <- rownames(transpose_mean_old)
+transpose_mean_old <- transpose_mean_old %>% relocate(VP)
+
+# Transponieren Median
+transpose_median_old <- median_old_wide %>%
+  select(-block) %>%
+  t() %>%
+  as.data.frame()
+colnames(transpose_median_old) <- paste0("MedB_", unique(median_old_wide$block))
+transpose_median_old$VP <- rownames(transpose_median_old)
+transpose_median_old <- transpose_median_old %>% relocate(VP)
+
+# Alte Daten zu bestehendem Workbook hinzufügen
+addWorksheet(wb, "Mittelwert_alt")
+addWorksheet(wb, "Median_alt")
+
+writeData(wb, sheet = "Mittelwert_alt", transpose_mean_old)
+writeData(wb, sheet = "Median_alt", transpose_median_old)
+
+# Workbook erneut speichern
+saveWorkbook(wb, pfad, overwrite = TRUE)
+
+darts_old_summary <- darts_old_distance %>%
+  filter(number %in% 1:8) %>%
+  group_by(block) %>%
+  summarise(
+    mean_dist = mean(distance, na.rm = TRUE),
+    median_dist = median(distance, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
 
 
-## Diagramme
+## Daten (Block 1-20)
 ::: {.panel-tabset}
-## Distanzen
+## Diagramm (jung)
 
 ```{r}
 #| eval: true
@@ -229,7 +328,7 @@ graph <- ggplot(darts_long, aes(x = block, y = Distanz, color = Typ)) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dotted") +
   
   scale_x_continuous(breaks = 1:20) +
-  scale_y_continuous(limits = c(60, 100), breaks = seq(60, 100, by = 5)) +
+  scale_y_continuous(limits = c(55, 95), breaks = seq(55, 95, by = 5)) +
 
   scale_color_manual(
     name = "Legende:",
@@ -252,57 +351,59 @@ graph <- ggplot(darts_long, aes(x = block, y = Distanz, color = Typ)) +
 ggplotly(graph)
 ```
 
-## Fehler
+## Diagramm (alt)
 
 ```{r}
 #| eval: true
 #| echo: false
-#| include: false
 
-# Berechnen
-# Anzahl der NAs pro Block (Würfe 1–8)
-na_counts <- darts_distance %>%
-  filter(number %in% 1:8) %>%
-  group_by(block) %>%
-  summarise(
-    missing = sum(is.na(distance)),
-    .groups = "drop"
-  ) %>%
+# Alte Proband*innen
+darts_long_old <- darts_old_summary %>%
+  select(block, mean_dist, median_dist) %>%
+  pivot_longer(cols = c(mean_dist, median_dist),
+               names_to = "Typ", values_to = "Distanz") %>%
   mutate(
-    total_possible = 8 * ((ncol(darts) - 2) / 2),  # 8 Würfe × Anzahl VPs
-    missing_percent = (missing / total_possible) * 100
+    Typ = recode(Typ,
+                 "mean_dist" = "Mittelwert",
+                 "median_dist" = "Median"),
+    Gruppe = "alt"
   )
 
-```
-
-```{r}
-#| eval: true
-#| echo: false
-
-# Plot
-missingv = ggplot(na_counts, aes(x = block, y = missing_percent)) +
-  geom_line(color = "firebrick", size = 1.2) +
-  geom_point(color = "firebrick", size = 2) +
-  labs(
-    title = "Prozentuale Fehlerrate pro Block",
-    x = "Block",
-    y = "Fehlerrate (%)"
-  ) +
+graph <- ggplot(darts_long_old, aes(x = block, y = Distanz, color = Typ)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dotted") +
+  
   scale_x_continuous(breaks = 1:20) +
+  scale_y_continuous(limits = c(55, 110), breaks = seq(55, 110, by = 5)) +
+
+  scale_color_manual(
+    name = "Legende:",
+    values = c("Mittelwert" = "azure4", "Median" = "darkgoldenrod2")
+  ) +
+
+  labs(
+    x = "Block",
+    y = "Distanz (in mm)"
+  ) +
   theme_minimal(base_size = 12) +
   theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
     plot.title = element_text(hjust = 0.5, face = "bold"),
     axis.title = element_text(face = "bold")
   )
 
-ggplotly(missingv)
+# Interaktive Darstellung
+ggplotly(graph)
+
 ```
 
-:::
-## Tabelle
+
+## Daten
 ::: {.panel-tabset}
 
-## Mittelwert
+## Mittelwert (jung)
 
 ```{r}
 #| eval: true
@@ -324,11 +425,9 @@ datatable(
 ) %>%
   formatRound(columns = 2:ncol(transpose_mean), digits = 2) %>%
   formatStyle(columns = 1:ncol(transpose_mean))
-
-
 ```
 
-## Median
+## Median (jung)
 
 ```{r}
 #| eval: true
@@ -348,15 +447,59 @@ datatable(
   formatRound(columns = 2:ncol(transpose_median), digits = 2)
 ```
 
-:::
+## Mittelwert (alt)
 
+```{r}
+#| eval: true
+#| echo: false
+
+datatable(
+  transpose_mean_old,
+  rownames = FALSE,
+  colnames = c("VP", "Block 1", "Block 2", "Block 3", "Block 4", "Block 5", "Block 6",
+               "Block 7", "Block 8", "Block 9", "Block 10", "Block 11", "Block 12",
+               "Block 13", "Block 14", "Block 15", "Block 16", "Block 17", "Block 18",
+               "Block 19", "Block 20"),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(transpose_mean_old), digits = 2) %>%
+  formatStyle(columns = 1:ncol(transpose_mean_old))
+```
+
+## Median (alt)
+```{r}
+#| eval: true
+#| echo: false
+
+datatable(
+  transpose_median_old,
+  rownames = FALSE,
+  colnames = c("VP", "Block 1", "Block 2", "Block 3", "Block 4", "Block 5", "Block 6",
+               "Block 7", "Block 8", "Block 9", "Block 10", "Block 11", "Block 12",
+               "Block 13", "Block 14", "Block 15", "Block 16", "Block 17", "Block 18",
+               "Block 19", "Block 20"),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(transpose_median_old), digits = 2) %>%
+  formatStyle(columns = 1:ncol(transpose_median_old))
+```
+:::
 
 ## Anova mit Messwiederholung
 
-
 ::: {.panel-tabset}
 
-## Mittelwert
+## Mittelwert (jung)
 ```{r}
 #| eval: true
 #| echo: false
@@ -407,7 +550,7 @@ kable(anova_table, caption = "ANOVA – Block (1–20)")
 kable(contrast_table, caption = "Kontraste")
 ```
 
-## Median 
+## Median (jung)
 
 ```{r}
 #| eval: true
@@ -428,7 +571,11 @@ anova_result <- ezANOVA(
 )
 
 anova_table <- anova_result$ANOVA %>%
+  mutate(
+    etasq_p = SSn / (SSn + SSd)   # partielles eta²
+  ) %>%
   mutate(across(where(is.numeric), ~ round(., 3)))
+
 
 # Modell für emmeans (korrigiert)
 aov_afex <- aov_ez(
@@ -455,96 +602,558 @@ contrast_table <- contrast(emmeans(aov_afex, ~ block), method = "poly") %>%
 #| eval: true
 #| echo: false
 
-kable(anova_table, caption = "ANOVA – Block (1–20)")
-kable(contrast_table, caption = "Kontraste")
+kable(
+  anova_table %>%
+    select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p),
+  caption = "Within-Subject Effects)"
+)
+kable(contrast_table, caption = "Within-Subject Contrasts")
 ```
-:::
 
-## Prozentualer Lernerfolg
+## Mittelwert (alt)
+```{r}
+#| eval: true
+#| echo: false
+#| include: false
 
-Der prozentuale Lernerfolg berechnet sich wie folgt: $100\% - \left( \frac{\text{Endwert}}{\text{Startwert}} \times 100\% \right)$. 
+# Optional: VP ausschließen, wenn gewünscht
+mean_distance_old <- mean_distance_old %>%
+  # filter(vp != "vpXX") %>%  # z. B. auffällige VP ausschließen
+  mutate(block = factor(block))
 
-### Mittelwert
+# ANOVA (ezANOVA)
+anova_result_mean_old <- ezANOVA(
+  data = mean_distance_old,
+  dv = mean_distance,
+  wid = vp,
+  within = block,
+  type = 1,
+  detailed = TRUE
+)
+
+anova_table_mean_old <- anova_result_mean_old$ANOVA %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Modell mit afex für emmeans
+aov_afex_mean_old <- aov_ez(
+  id = "vp",
+  dv = "mean_distance",
+  within = "block",
+  data = mean_distance_old,
+  type = 3
+)
+
+# Emmeans & Kontraste
+emm_mean_old <- emmeans(aov_afex_mean_old, ~ block) %>%
+  as.data.frame() %>%
+  mutate(across(where(is.numeric), ~ round(., 2)))
+
+contrast_mean_old <- contrast(emmeans(aov_afex_mean_old, ~ block), method = "poly") %>%
+  as.data.frame() %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+```
 
 ```{r}
 #| eval: true
 #| echo: false
 
-# Anfangs- und Endwerte pro VP (Block 1 & Block 20)
-start_values <- mean_distance %>%
-  filter(block == 1) %>%
-  select(vp, start = mean_distance)
-
-end_values <- mean_distance %>%
-  filter(block == 20) %>%
-  select(vp, end = mean_distance)
-
-# Prozentualer Lernerfolg
-lernerfolg_df_mean_1_20 <- left_join(start_values, end_values, by = "vp") %>%
-  mutate(
-    start_prozent = 100,
-    end_prozent = (end / start) * 100,
-    lernerfolg = start_prozent - end_prozent
-  )
-
+kable(anova_table_mean_old, caption = "Within-Subject Effects")
+kable(contrast_mean_old, caption = "Within-Subject Contrasts")
 ```
 
-Im Mittel beträgt der Lernerfolg (Block 1 → 20, **Mittelwert**) _m_ = `r round(mean(lernerfolg_df_mean_1_20$lernerfolg, na.rm = TRUE), 2)` %.
-
-<details>
-<summary><strong>Ergebnisse anzeigen</strong></summary>
-
-```{r}
-#| eval: true
-#| echo: false
-#| table-fold: true
-
-kable(lernerfolg_df_mean_1_20, digits = 2, caption = "Lernerfolg von Block 1 zu 20 (Mittelwert)")
-```
+## Median (alt)
 
 ```{r}
 #| eval: true
 #| echo: false
 #| include: false
 
-start_values <- median_distance %>%
-  filter(block == 1) %>%
-  select(vp, start = median_distance)
+median_distance_old <- median_distance_old %>%
+  # filter(vp != "vpXX") %>%  # optional: auffällige VP ausschließen
+  mutate(block = factor(block))
 
-end_values <- median_distance %>%
-  filter(block == 20) %>%
-  select(vp, end = median_distance)
+anova_result_median_old <- ezANOVA(
+  data = median_distance_old,
+  dv = median_distance,
+  wid = vp,
+  within = block,
+  type = 1,
+  detailed = TRUE
+)
 
-lernerfolg_df_median_1_20 <- left_join(start_values, end_values, by = "vp") %>%
+anova_table_median_old <- anova_result_median_old$ANOVA %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Modell für emmeans
+aov_afex_median_old <- aov_ez(
+  id = "vp",
+  dv = "median_distance",
+  within = "block",
+  data = median_distance_old,
+  type = 3
+)
+
+# Emmeans & Kontraste
+emm_median_old <- emmeans(aov_afex_median_old, ~ block) %>%
+  as.data.frame() %>%
+  mutate(across(where(is.numeric), ~ round(., 2)))
+
+contrast_median_old <- contrast(emmeans(aov_afex_median_old, ~ block), method = "poly") %>%
+  as.data.frame() %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+```
+
+```{r}
+#| eval: true
+#| echo: false
+
+kable(anova_table_median_old, caption = "Within-Subject Effects")
+kable(contrast_median_old, caption = "Within-Subject Contrasts")
+```
+:::
+:::
+
+# Daten (10x2er Blöcke, gesamt 20 Blöcke)
+
+```{r}
+#| eval: true
+#| echo: false
+
+# junge Menschen
+# 2 Blöcke zusammenschließen (10 Gruppen)
+darts_binned_2 <- darts_distance %>%
+  filter(number %in% 1:8) %>%
   mutate(
-    start_prozent = 100,
-    end_prozent = (end / start) * 100,
-    lernerfolg = start_prozent - end_prozent
+    blockgruppe = case_when(
+      block %in% 1:2   ~ "Block 1–2",
+      block %in% 3:4   ~ "Block 3–4",
+      block %in% 5:6   ~ "Block 5–6",
+      block %in% 7:8   ~ "Block 7–8",
+      block %in% 9:10  ~ "Block 9–10",
+      block %in% 11:12 ~ "Block 11–12",
+      block %in% 13:14 ~ "Block 13–14",
+      block %in% 15:16 ~ "Block 15–16",
+      block %in% 17:18 ~ "Block 17–18",
+      block %in% 19:20 ~ "Block 19–20",
+      TRUE ~ NA_character_
+    ),
+    blockgruppe = factor(
+      blockgruppe,
+      levels = c("Block 1–2", "Block 3–4", "Block 5–6", "Block 7–8", "Block 9–10",
+                 "Block 11–12", "Block 13–14", "Block 15–16", "Block 17–18", "Block 19–20")
+    )
+  ) %>%
+  filter(!is.na(blockgruppe)) %>%
+  group_by(vp, blockgruppe) %>%
+  summarise(
+    mean_dist = mean(distance, na.rm = TRUE),
+    median_dist = median(distance, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Alte Menschen
+darts_binned_2_old <- darts_old_distance %>%
+  filter(number %in% 1:8) %>%
+  mutate(
+    blockgruppe = case_when(
+      block %in% 1:2   ~ "Block 1–2",
+      block %in% 3:4   ~ "Block 3–4",
+      block %in% 5:6   ~ "Block 5–6",
+      block %in% 7:8   ~ "Block 7–8",
+      block %in% 9:10  ~ "Block 9–10",
+      block %in% 11:12 ~ "Block 11–12",
+      block %in% 13:14 ~ "Block 13–14",
+      block %in% 15:16 ~ "Block 15–16",
+      block %in% 17:18 ~ "Block 17–18",
+      block %in% 19:20 ~ "Block 19–20",
+      TRUE ~ NA_character_
+    ),
+    blockgruppe = factor(
+      blockgruppe,
+      levels = c("Block 1–2", "Block 3–4", "Block 5–6", "Block 7–8", "Block 9–10",
+                 "Block 11–12", "Block 13–14", "Block 15–16", "Block 17–18", "Block 19–20")
+    )
+  ) %>%
+  filter(!is.na(blockgruppe)) %>%
+  group_by(vp, blockgruppe) %>%
+  summarise(
+    mean_dist = mean(distance, na.rm = TRUE),
+    median_dist = median(distance, na.rm = TRUE),
+    .groups = "drop"
   )
 
 ```
 
-### Median
-Im Mittel beträgt der Lernerfolg (Block 1 → 20, **Median**) _m_ = `r round(mean(lernerfolg_df_median_1_20$lernerfolg, na.rm = TRUE), 2)` %.
-<details>
-<summary><strong>Ergebnisse anzeigen</strong></summary>
+```{r}
+#| eval: true
+#| echo: false
+
+# Jung
+# Wide Format für Mittelwerte & Mediane
+means_wide_2 <- darts_binned_2 %>%
+  select(vp, blockgruppe, mean_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = mean_dist)
+
+medians_wide_2 <- darts_binned_2 %>%
+  select(vp, blockgruppe, median_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = median_dist)
+
+addWorksheet(wb, "Mittelwert 2 Blöcke jung")
+addWorksheet(wb, "Median 2 Blöcke jung")
+
+writeData(wb, sheet = "Mittelwert 2 Blöcke jung", means_wide_2)
+writeData(wb, sheet = "Median 2 Blöcke jung", medians_wide_2)
+
+saveWorkbook(wb, pfad, overwrite = TRUE)
+
+#Alt
+# Wide Format
+means_wide_2_old <- darts_binned_2_old %>%
+  select(vp, blockgruppe, mean_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = mean_dist)
+
+medians_wide_2_old <- darts_binned_2_old %>%
+  select(vp, blockgruppe, median_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = median_dist)
+
+# In Excel schreiben
+addWorksheet(wb, "Mittelwert 2 Blöcke alt")
+addWorksheet(wb, "Median 2 Blöcke alt")
+
+writeData(wb, sheet = "Mittelwert 2 Blöcke alt", means_wide_2_old)
+writeData(wb, sheet = "Median 2 Blöcke alt", medians_wide_2_old)
+
+saveWorkbook(wb, pfad, overwrite = TRUE)
+```
+
+
+::: {.panel-tabset}
+## Diagramm (jung)
+```{r}
+#| eval: true
+#| echo: false
+
+# Zusammenfassen für Mittelwert & Median über alle VPs
+darts_binned_summary_2 <- darts_binned_2 %>%
+  group_by(blockgruppe) %>%
+  summarise(
+    mean_dist = mean(mean_dist, na.rm = TRUE),
+    median_dist = mean(median_dist, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Long Format für ggplot
+darts_binned_long_2 <- darts_binned_summary_2 %>%
+  pivot_longer(cols = c(mean_dist, median_dist),
+               names_to = "Typ",
+               values_to = "Distanz") %>%
+  mutate(Typ = recode(Typ,
+                      "mean_dist" = "Mittelwert",
+                      "median_dist" = "Median"))
+
+# Plot
+graph_2 <- ggplot(darts_binned_long_2, aes(x = blockgruppe, y = Distanz, color = Typ, group = Typ)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dotted") +
+  scale_y_continuous(limits = c(65, 90), breaks = seq(65, 90, by = 5)) +
+  scale_color_manual(
+    name = "Legende:",
+    values = c("Mittelwert" = "azure4", "Median" = "darkgoldenrod2")
+  ) +
+  labs(
+    x = "Blockgruppe",
+    y = "Distanz (in mm)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "bold")
+  )
+
+ggplotly(graph_2)
+```
+
+## Diagramm (alt)
 
 ```{r}
 #| eval: true
 #| echo: false
-#| 
-kable(lernerfolg_df_median_1_20, digits = 2, caption = "Lernerfolg von Block 1 zu 20 (Median)")
+
+# Zusammenfassen: Mittelwert & Median über alle VPs
+darts_binned_summary_2_old <- darts_binned_2_old %>%
+  group_by(blockgruppe) %>%
+  summarise(
+    mean_dist = mean(mean_dist, na.rm = TRUE),
+    median_dist = mean(median_dist, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Long Format für ggplot
+darts_binned_long_2_old <- darts_binned_summary_2_old %>%
+  pivot_longer(cols = c(mean_dist, median_dist),
+               names_to = "Typ",
+               values_to = "Distanz") %>%
+  mutate(Typ = recode(Typ,
+                      "mean_dist" = "Mittelwert",
+                      "median_dist" = "Median"))
+
+# Plot für alte Proband*innen
+graph_2_alt <- ggplot(darts_binned_long_2_old, aes(x = blockgruppe, y = Distanz, color = Typ, group = Typ)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dotted") +
+  scale_y_continuous(limits = c(60, 115), breaks = seq(60, 115, by = 5)) +
+  scale_color_manual(
+    name = "Legende:",
+    values = c("Mittelwert" = "azure4", "Median" = "darkgoldenrod2")
+  ) +
+  labs(
+    x = "Blockgruppe",
+    y = "Distanz (in mm)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "bold")
+  )
+
+ggplotly(graph_2_alt)
 
 ```
 
-# Daten (5x4 Blöcke, gesamt 20 Blöcke)
+## Daten
+
+::: {.panel-tabset}
+
+## Mittelwert (jung)
+```{r}
+#| eval: true
+#| echo: false
+
+datatable(means_wide_2,
+  rownames = FALSE,
+  colnames = colnames(means_wide_2),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(means_wide_2), digits = 2)
+
+```
+
+## Median (jung)
+```{r}
+#| eval: true
+#| echo: false
+
+datatable(medians_wide_2,
+  rownames = FALSE,
+  colnames = colnames(medians_wide_2),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(medians_wide_2), digits = 2)
+```
+
+
+## Mittelwert (alt)
 
 ```{r}
 #| eval: true
 #| echo: false
 
+datatable(means_wide_2_old,
+  rownames = FALSE,
+  colnames = colnames(means_wide_2_old),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(means_wide_2_old), digits = 2)
+```
+
+## Median (alt)
+```{r}
+#| eval: true
+#| echo: false
+
+datatable(medians_wide_2_old,
+  rownames = FALSE,
+  colnames = colnames(medians_wide_2_old),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(medians_wide_2_old), digits = 2)
+```
+
+:::
+
+## Anova
+```{r}
+#| eval: true
+#| include: false
+
+# Faktoren setzen
+darts_binned_2$vp <- factor(darts_binned_2$vp)
+darts_binned_2$blockgruppe <- factor(darts_binned_2$blockgruppe)
+
+# ANOVA mit ezANOVA
+anova_result_mean_2 <- ezANOVA(
+  data = darts_binned_2,
+  dv = mean_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 3,
+  detailed = TRUE
+)
+
+# Partielles Eta² hinzufügen
+anova_table_mean_2 <- anova_result_mean_2$ANOVA %>%
+  mutate(
+    etasq_p = SSn / (SSn + SSd)   # partielles eta²
+  ) %>%
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%  # nur relevante Spalten
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+
+# Modell mit afex
+aov_afex_mean_2 <- aov_ez(
+  id = "vp",
+  dv = "mean_dist",
+  within = "blockgruppe",
+  data = darts_binned_2,
+  type = 3
+)
+
+# Emmeans & lineare Kontraste
+emm_mean_2 <- emmeans(aov_afex_mean_2, ~ blockgruppe)
+contrast_mean_2 <- contrast(emm_mean_2, method = "poly")
+```
+
+:::{.panel-tabset}
+
+## Mittelwert (jung)
+```{r}
+#| eval: true
+#| echo: false
+
+anova_table_mean_2 <- anova_result_mean_2$ANOVA %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+kable(anova_table_mean_2, caption = "Within-Subject Effects (partielles η²)")
+kable(contrast_mean_2, caption = "Within-Subject Contrasts")
+```
+
+## Median (jung)
+
+```{r}
+#| eval: true
+#| include: false
+
+# Faktoren setzen
+darts_binned_2$vp <- factor(darts_binned_2$vp)
+darts_binned_2$blockgruppe <- factor(darts_binned_2$blockgruppe)
+
+# ANOVA mit ezANOVA
+anova_result_median_2 <- ezANOVA(
+  data = darts_binned_2,
+  dv = median_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 3,
+  detailed = TRUE
+)
+
+anova_table_median_2 <- anova_result_mean_2$ANOVA %>%
+  mutate(
+    etasq_p = SSn / (SSn + SSd)   # partielles eta²
+  ) %>%
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%  # nur relevante Spalten
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Modell mit afex
+aov_afex_median_2 <- aov_ez(
+  id = "vp",
+  dv = "median_dist",
+  within = "blockgruppe",
+  data = darts_binned_2,
+  type = 3
+)
+
+# Emmeans & Kontraste
+emm_median_2 <- emmeans(aov_afex_median_2, ~ blockgruppe)
+contrast_median_2 <- contrast(emm_median_2, method = "poly")
+```
+
+```{r}
+#| eval: true
+#| echo: false
+
+kable(
+  anova_table_median_2 %>%
+    select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p),
+  caption = "Within-Subject Effects)"
+)
+kable(contrast_table, caption = "Within-Subject Contrasts")
+```
+:::
+:::
+
+
+# Daten (5x4er Blöcke, gesamt 20 Blöcke)
+
+```{r}
+#| eval: true
+#| echo: false
+
+#Jung
 # 4 Blöcke zusammenschließen
 darts_binned_4 <- darts_distance %>%
+  filter(number %in% 1:8) %>%
+  mutate(
+    blockgruppe = case_when(
+      block %in% 1:4   ~ "Block 1–4",
+      block %in% 5:8   ~ "Block 5–8",
+      block %in% 9:12  ~ "Block 9–12",
+      block %in% 13:16 ~ "Block 13–16",
+      block %in% 17:20 ~ "Block 17–20",
+      TRUE ~ NA_character_
+    ),
+    blockgruppe = factor(
+      blockgruppe,
+      levels = c("Block 1–4", "Block 5–8", "Block 9–12", "Block 13–16", "Block 17–20")
+    )
+  ) %>%
+  filter(!is.na(blockgruppe)) %>%
+  group_by(vp, blockgruppe) %>%
+  summarise(
+    mean_dist = mean(distance, na.rm = TRUE),
+    median_dist = median(distance, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+#Alt
+# 4 Blöcke zusammenschließen – ALT
+darts_binned_4_old <- darts_old_distance %>%
   filter(number %in% 1:8) %>%
   mutate(
     blockgruppe = case_when(
@@ -573,6 +1182,7 @@ darts_binned_4 <- darts_distance %>%
 #| eval: true
 #| echo: false
 
+#Jung
 # Wide Format
 # Mittelwerte transponieren
 means_wide_4 <- darts_binned_4 %>%
@@ -583,11 +1193,6 @@ means_wide_4 <- darts_binned_4 %>%
 medians_wide_4 <- darts_binned_4 %>%
   select(vp, blockgruppe, median_dist) %>%
   pivot_wider(names_from = blockgruppe, values_from = median_dist)
-```
-
-```{r}
-#| eval: true
-#| echo: false
 
 # Neue Blätter hinzufügen
 addWorksheet(wb, "Mittelwert 4 Blöcke")
@@ -600,48 +1205,33 @@ writeData(wb, sheet = "Median 4 Blöcke", medians_wide_4)
 # Datei speichern
 saveWorkbook(wb, pfad, overwrite = TRUE)
 
+
+# Alt
+# Mittelwerte transponieren – ALT
+means_wide_4_old <- darts_binned_4_old %>%
+  select(vp, blockgruppe, mean_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = mean_dist)
+
+# Mediane transponieren – ALT
+medians_wide_4_old <- darts_binned_4_old %>%
+  select(vp, blockgruppe, median_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = median_dist)
+
+# Neue Blätter für ALT hinzufügen
+addWorksheet(wb, "Mittelwert 4 Blöcke alt")
+addWorksheet(wb, "Median 4 Blöcke alt")
+
+# Daten schreiben
+writeData(wb, sheet = "Mittelwert 4 Blöcke alt", means_wide_4_old)
+writeData(wb, sheet = "Median 4 Blöcke alt", medians_wide_4_old)
+
+# Datei speichern
+saveWorkbook(wb, pfad, overwrite = TRUE)
 ```
 
-## Diagramme
-
-```{r}
-#| eval: true
-#| echo: false
-
-# NA-Zählung pro Block (Würfe 1–8)
-na_counts <- darts_distance %>%
-  filter(number %in% 1:8) %>%
-  group_by(block) %>%
-  summarise(missing = sum(is.na(distance)), .groups = "drop")
-
-# Neue Blockgruppen (4er Schritte)
-na_binned_4 <- na_counts %>%
-  mutate(
-    blockgruppe = case_when(
-      block %in% 1:4   ~ "Block 1–4",
-      block %in% 5:8   ~ "Block 5–8",
-      block %in% 9:12  ~ "Block 9–12",
-      block %in% 13:16 ~ "Block 13–16",
-      block %in% 17:20 ~ "Block 17–20",
-      TRUE ~ NA_character_
-    ),
-    blockgruppe = factor(
-      blockgruppe,
-      levels = c("Block 1–4", "Block 5–8", "Block 9–12", "Block 13–16", "Block 17–20")
-    )
-  ) %>%
-  filter(!is.na(blockgruppe)) %>%
-  group_by(blockgruppe) %>%
-  summarise(
-    fehlersumme = sum(missing),
-    fehlermittel = mean(missing),
-    .groups = "drop"
-  )
-
-```
 
 ::: {.panel-tabset}
-## Distanzen
+## Diagramm (jung)
 ```{r}
 #| eval: true
 #| echo: false
@@ -669,7 +1259,390 @@ graph_4 <- ggplot(darts_binned_long_4, aes(x = blockgruppe, y = Distanz, color =
   geom_line(size = 1.2) +
   geom_point(size = 2) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dotted") +
-  scale_y_continuous(limits = c(70, 90), breaks = seq(70, 90, by = 5)) +
+  scale_y_continuous(limits = c(65, 90), breaks = seq(65, 90, by = 5)) +
+  scale_color_manual(
+    name = "Legende:",
+    values = c("Mittelwert" = "azure4", "Median" = "darkgoldenrod2")
+  ) +
+  labs(
+    x = "Blockgruppe",
+    y = "Distanz (in mm)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "bold")
+  )
+
+ggplotly(graph_4)
+```
+
+## Diagramm (alt)
+```{r}
+#| eval: true
+#| echo: false
+
+# Zusammenfassen über alle alten VPs
+darts_binned_summary_4_old <- darts_binned_4_old %>%
+  group_by(blockgruppe) %>%
+  summarise(
+    mean_dist = mean(mean_dist, na.rm = TRUE),
+    median_dist = mean(median_dist, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Long-Format für ggplot
+darts_binned_long_4_old <- darts_binned_summary_4_old %>%
+  pivot_longer(cols = c(mean_dist, median_dist),
+               names_to = "Typ",
+               values_to = "Distanz") %>%
+  mutate(Typ = recode(Typ,
+                      "mean_dist" = "Mittelwert",
+                      "median_dist" = "Median"))
+
+# Plot
+graph_4_old <- ggplot(darts_binned_long_4_old, aes(x = blockgruppe, y = Distanz, color = Typ, group = Typ)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dotted") +
+  scale_y_continuous(limits = c(70, 95), breaks = seq(70, 95, by = 5)) +
+  scale_color_manual(
+    name = "Legende:",
+    values = c("Mittelwert" = "azure4", "Median" = "darkgoldenrod2")
+  ) +
+  labs(
+    x = "Blockgruppe",
+    y = "Distanz (in mm)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "bold")
+  )
+
+ggplotly(graph_4_old)
+```
+
+
+## Tabelle
+::: {.panel-tabset}
+
+## Mittelwert (jung)
+```{r}
+#| eval: true
+#| echo: false
+
+datatable(means_wide_4,
+  rownames = FALSE,
+  colnames = c("VP", "Block 1–4", "Block 5–8", "Block 9–12", "Block 13–16", "Block 17–20"),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(means_wide_4), digits = 2)
+```
+
+## Median (jung)
+```{r}
+#| eval: true
+#| echo: false
+
+datatable(medians_wide_4,
+  rownames = FALSE,
+  colnames = c("VP", "Block 1–4", "Block 5–8", "Block 9–12", "Block 13–16", "Block 17–20"),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(medians_wide_4), digits = 2)
+```
+
+## Mittelwert (alt)
+```{r}
+#| eval: true
+#| echo: false
+
+datatable(means_wide_4_old,
+  rownames = FALSE,
+  colnames = c("VP", "Block 1–4", "Block 5–8", "Block 9–12", "Block 13–16", "Block 17–20"),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(means_wide_4_old), digits = 2)
+```
+
+## Median (alt)
+```{r}
+#| eval: true
+#| echo: false
+
+datatable(medians_wide_4_old,
+  rownames = FALSE,
+  colnames = c("VP", "Block 1–4", "Block 5–8", "Block 9–12", "Block 13–16", "Block 17–20"),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(medians_wide_4_old), digits = 2)
+```
+:::
+
+
+## Anova mit Messwiederholung
+
+::: {.panel-tabset}
+
+## Mittelwert (jung)
+
+```{r}
+#| eval: true
+#| include: false
+
+# Faktoren korrekt setzen
+darts_binned_4$vp <- factor(darts_binned_4$vp)
+darts_binned_4$blockgruppe <- factor(darts_binned_4$blockgruppe)
+
+# ANOVA mit ezANOVA
+anova_result_mean <- ezANOVA(
+  data = darts_binned_4,
+  dv = mean_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 3,
+  detailed = TRUE
+)
+
+anova_table_mean <- anova_result_mean$ANOVA %>%
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%                 # partielles eta²
+    filter(Effect != "(Intercept)") %>%   
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%   # ges ausblenden
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Modell mit afex
+aov_afex_mean <- aov_ez(
+  id = "vp",
+  dv = "mean_dist",
+  within = "blockgruppe",
+  data = darts_binned_4,
+  type = 3
+)
+
+# Emmeans und Kontraste
+emm_mean <- emmeans(aov_afex_mean, ~ blockgruppe)
+contrast_mean <- contrast(emm_mean, method = "poly")
+```
+
+```{r}
+#| eval: true
+#| echo: false
+
+
+kable(anova_table_mean %>%
+       select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p),
+  caption = "Within-Subject Effects")
+kable(contrast_mean, caption = "Within-Subject Contrasts")
+```
+
+
+## Median (jung)
+```{r}
+#| eval: true
+#| include: false
+
+# Faktoren korrekt setzen
+darts_binned_4$vp <- factor(darts_binned_4$vp)
+darts_binned_4$blockgruppe <- factor(darts_binned_4$blockgruppe)
+
+# ANOVA mit ezANOVA
+anova_result_median <- ezANOVA(
+  data = darts_binned_4,
+  dv = median_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 3,
+  detailed = TRUE
+)
+
+anova_table_median <- anova_result_median$ANOVA %>%
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%                 # partielles eta²
+    filter(Effect != "(Intercept)") %>%   
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%   # ges ausblenden
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Modell mit afex
+aov_afex_median <- aov_ez(
+  id = "vp",
+  dv = "median_dist",
+  within = "blockgruppe",
+  data = darts_binned_4,
+  type = 3
+)
+
+# Emmeans und Kontraste
+emm_median <- emmeans(aov_afex_median, ~ blockgruppe)
+contrast_median <- contrast(emm_median, method = "poly")
+```
+
+```{r}
+#| eval: true
+#| echo: false
+
+kable(anova_table_median, caption = "Within-Subject Effects")
+kable(contrast_median, caption = "Within- Subject Contrasts")
+```
+
+:::
+:::
+
+
+# Daten (4x5er Blöcke, gesamt 20 Blöcke)
+
+```{r}
+#| eval: true
+#| echo: false
+
+darts_binned_5_jung <- darts_distance %>%
+  filter(number %in% 1:8) %>%
+  mutate(
+    blockgruppe = case_when(
+      block %in% 1:5   ~ "Block 1–5",
+      block %in% 6:10  ~ "Block 6–10",
+      block %in% 11:15 ~ "Block 11–15",
+      block %in% 16:20 ~ "Block 16–20",
+      TRUE ~ NA_character_
+    ),
+    blockgruppe = factor(
+      blockgruppe,
+      levels = c("Block 1–5", "Block 6–10", "Block 11–15", "Block 16–20")
+    )
+  ) %>%
+  filter(!is.na(blockgruppe)) %>%
+  group_by(vp, blockgruppe) %>%
+  summarise(
+    mean_dist = mean(distance, na.rm = TRUE),
+    median_dist = median(distance, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+darts_binned_5_alt <- darts_old_distance %>%
+  filter(number %in% 1:8) %>%
+  mutate(
+    blockgruppe = case_when(
+      block %in% 1:5   ~ "Block 1–5",
+      block %in% 6:10  ~ "Block 6–10",
+      block %in% 11:15 ~ "Block 11–15",
+      block %in% 16:20 ~ "Block 16–20",
+      TRUE ~ NA_character_
+    ),
+    blockgruppe = factor(
+      blockgruppe,
+      levels = c("Block 1–5", "Block 6–10", "Block 11–15", "Block 16–20")
+    )
+  ) %>%
+  filter(!is.na(blockgruppe)) %>%
+  group_by(vp, blockgruppe) %>%
+  summarise(
+    mean_dist = mean(distance, na.rm = TRUE),
+    median_dist = median(distance, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+
+```{r}
+#| eval: true
+#| echo: false
+
+# Daten ins wide-Format
+# Jung
+means_wide_5_jung <- darts_binned_5_jung %>%
+  select(vp, blockgruppe, mean_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = mean_dist)
+
+medians_wide_5_jung <- darts_binned_5_jung %>%
+  select(vp, blockgruppe, median_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = median_dist)
+
+# Alt
+means_wide_5_alt <- darts_binned_5_alt %>%
+  select(vp, blockgruppe, mean_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = mean_dist)
+
+medians_wide_5_alt <- darts_binned_5_alt %>%
+  select(vp, blockgruppe, median_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = median_dist)
+```
+
+```{r}
+#| eval: true
+#| echo: false
+
+# Excel Export
+# Neue Blätter hinzufügen
+addWorksheet(wb, "Mittelwert 5er Blöcke jung")
+addWorksheet(wb, "Median 5er Blöcke jung")
+addWorksheet(wb, "Mittelwert 5er Blöcke alt")
+addWorksheet(wb, "Median 5er Blöcke alt")
+
+# Daten reinschreiben
+writeData(wb, "Mittelwert 5er Blöcke jung", means_wide_5_jung)
+writeData(wb, "Median 5er Blöcke jung", medians_wide_5_jung)
+writeData(wb, "Mittelwert 5er Blöcke alt", means_wide_5_alt)
+writeData(wb, "Median 5er Blöcke alt", medians_wide_5_alt)
+
+# Workbook speichern
+saveWorkbook(wb, pfad, overwrite = TRUE)
+```
+
+
+::: {.panel-tabset}
+
+## Diagramm (jung)
+```{r}
+#| eval: true
+#| echo: false
+
+# Zusammenfassen über alle vp
+darts_binned_summary_5_jung <- darts_binned_5_jung %>%
+  group_by(blockgruppe) %>%
+  summarise(
+    mean_dist = mean(mean_dist, na.rm = TRUE),
+    median_dist = mean(median_dist, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Long-Format für ggplot
+darts_binned_long_5_jung <- darts_binned_summary_5_jung %>%
+  pivot_longer(cols = c(mean_dist, median_dist),
+               names_to = "Typ",
+               values_to = "Distanz") %>%
+  mutate(Typ = recode(Typ,
+                      "mean_dist" = "Mittelwert",
+                      "median_dist" = "Median"))
+
+# Plot
+graph_4 <- ggplot(darts_binned_long_5_jung, aes(x = blockgruppe, y = Distanz, color = Typ, group = Typ)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dotted") +
+  scale_y_continuous(limits = c(65, 99), breaks = seq(65, 90, by = 5)) +
   scale_color_manual(
     name = "Legende:",
     values = c("Mittelwert" = "azure4", "Median" = "darkgoldenrod2")
@@ -690,58 +1663,68 @@ ggplotly(graph_4)
 
 ```
 
-## Fehler
+
+## Diagramm (alt)
 
 ```{r}
 #| eval: true
 #| echo: false
 
-# Daten in Long-Format bringen für Plot
-na_binned_long <- na_binned_4 %>%
-  pivot_longer(cols = c(fehlersumme, fehlermittel),
+# Zusammenfassen über alle vp
+darts_binned_summary_5_alt <- darts_binned_5_alt %>%
+  group_by(blockgruppe) %>%
+  summarise(
+    mean_dist = mean(mean_dist, na.rm = TRUE),
+    median_dist = mean(median_dist, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Long-Format für ggplot
+darts_binned_long_5_alt <- darts_binned_summary_5_alt %>%
+  pivot_longer(cols = c(mean_dist, median_dist),
                names_to = "Typ",
-               values_to = "Fehler") %>%
+               values_to = "Distanz") %>%
   mutate(Typ = recode(Typ,
-                      "fehlersumme" = "Fehlersumme",
-                      "fehlermittel" = "Fehlermittel"))
+                      "mean_dist" = "Mittelwert",
+                      "median_dist" = "Median"))
 
 # Plot
-na_binned_plot <- ggplot(na_binned_long, aes(x = blockgruppe, y = Fehler, group = Typ, color = Typ)) +
+graph_4 <- ggplot(darts_binned_long_5_alt, aes(x = blockgruppe, y = Distanz, color = Typ, group = Typ)) +
   geom_line(size = 1.2) +
   geom_point(size = 2) +
-  labs(
-    title = "Fehlerentwicklung über 4er-Blockgruppen",
-    x = "Blockgruppe",
-    y = "Fehleranzahl"
+  geom_smooth(method = "lm", se = FALSE, linetype = "dotted") +
+  scale_y_continuous(limits = c(70, 95), breaks = seq(70, 95, by = 5)) +
+  scale_color_manual(
+    name = "Legende:",
+    values = c("Mittelwert" = "azure4", "Median" = "darkgoldenrod2")
   ) +
-  scale_color_manual(values = c("Fehlersumme" = "firebrick", "Fehlermittel" = "steelblue")) +
+  labs(
+    x = "Blockgruppe",
+    y = "Distanz (in mm)"
+  ) +
   theme_minimal(base_size = 12) +
   theme(
     legend.position = "bottom",
-    legend.title = element_blank(),
+    legend.title = element_text(face = "bold"),
     plot.title = element_text(hjust = 0.5, face = "bold"),
     axis.title = element_text(face = "bold")
   )
 
-ggplotly(na_binned_plot)
+ggplotly(graph_4)
+
 ```
 
-:::
-
-
-
-## Tabelle
+## Daten
 ::: {.panel-tabset}
 
-## Mittelwert
-
+## Mittelwert (jung)
 ```{r}
 #| eval: true
 #| echo: false
 
-datatable(means_wide_4,
+datatable(means_wide_5_jung,
   rownames = FALSE,
-  colnames = c("VP", "Block 1–4", "Block 5–8", "Block 9–12", "Block 13–16", "Block 17–20"),
+  colnames = c("VP", "Block 1–5", "Block 6–10", "Block 11–15", "Block 16–20"),
   extensions = 'Buttons',
   options = list(
     dom = 'Bfrtip',
@@ -749,17 +1732,17 @@ datatable(means_wide_4,
     pageLength = 10
   )
 ) %>%
-  formatRound(columns = 2:ncol(means_wide_4), digits = 2)
+  formatRound(columns = 2:ncol(means_wide_5_jung), digits = 2)
 ```
 
-## Median
+## Median (jung)
 ```{r}
 #| eval: true
 #| echo: false
 
-datatable(medians_wide_4,
+datatable(medians_wide_5_jung,
   rownames = FALSE,
-  colnames = c("VP", "Block 1–4", "Block 5–8", "Block 9–12", "Block 13–16", "Block 17–20"),
+  colnames = c("VP", "Block 1–5", "Block 6–10", "Block 11–15", "Block 16–20"),
   extensions = 'Buttons',
   options = list(
     dom = 'Bfrtip',
@@ -767,111 +1750,46 @@ datatable(medians_wide_4,
     pageLength = 10
   )
 ) %>%
-  formatRound(columns = 2:ncol(medians_wide_4), digits = 2)
-
-```
-:::
-
-
-## Anova mit Messwiederholung
-
-::: {.panel-tabset}
-
-## Mittelwert
-
-```{r}
-#| eval: true
-#| include: false
-
-# Faktoren korrekt setzen
-darts_binned_4$vp <- factor(darts_binned_4$vp)
-darts_binned_4$blockgruppe <- factor(darts_binned_4$blockgruppe)
-
-# ANOVA mit ezANOVA
-anova_result_mean <- ezANOVA(
-  data = darts_binned_4,
-  dv = mean_dist,
-  wid = vp,
-  within = blockgruppe,
-  type = 3,
-  detailed = TRUE
-)
-
-# Modell mit afex
-aov_afex_mean <- aov_ez(
-  id = "vp",
-  dv = "mean_dist",
-  within = "blockgruppe",
-  data = darts_binned_4,
-  type = 3
-)
-
-# Emmeans und Kontraste
-emm_mean <- emmeans(aov_afex_mean, ~ blockgruppe)
-contrast_mean <- contrast(emm_mean, method = "poly")
+  formatRound(columns = 2:ncol(medians_wide_5_jung), digits = 2)
 ```
 
+## Mittelwert (alt)
 ```{r}
 #| eval: true
 #| echo: false
 
-anova_table_mean <- anova_result_mean$ANOVA %>%
-  mutate(across(where(is.numeric), ~ round(., 3)))
-
-kable(anova_table_mean, caption = "ANOVA Ergebnisse (Mittelwert, 4er-Blöcke)")
-kable(contrast_mean, caption = "Lineare Kontraste (Mittelwert)")
+datatable(means_wide_5_alt,
+  rownames = FALSE,
+  colnames = c("VP", "Block 1–5", "Block 6–10", "Block 11–15", "Block 16–20"),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(means_wide_5_alt), digits = 2)
 ```
 
-
-## Median
-
-
-```{r}
-#| eval: true
-#| include: false
-
-# Faktoren korrekt setzen
-darts_binned_4$vp <- factor(darts_binned_4$vp)
-darts_binned_4$blockgruppe <- factor(darts_binned_4$blockgruppe)
-
-# ANOVA mit ezANOVA
-anova_result_median <- ezANOVA(
-  data = darts_binned_4,
-  dv = median_dist,
-  wid = vp,
-  within = blockgruppe,
-  type = 3,
-  detailed = TRUE
-)
-
-# Modell mit afex
-aov_afex_median <- aov_ez(
-  id = "vp",
-  dv = "median_dist",
-  within = "blockgruppe",
-  data = darts_binned_4,
-  type = 3
-)
-
-# Emmeans und Kontraste
-emm_median <- emmeans(aov_afex_median, ~ blockgruppe)
-contrast_median <- contrast(emm_median, method = "poly")
-```
-
-
+## Median (alt)
 ```{r}
 #| eval: true
 #| echo: false
 
-anova_table_median <- anova_result_median$ANOVA %>%
-  mutate(across(where(is.numeric), ~ round(., 3)))
-
-kable(anova_table_median, caption = "ANOVA Ergebnisse (Median, 4er-Blöcke)")
-kable(contrast_median, caption = "Lineare Kontraste (Median)")
+datatable(medians_wide_5_alt,
+  rownames = FALSE,
+  colnames = c("VP", "Block 1–5", "Block 6–10", "Block 11–15", "Block 16–20"),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(medians_wide_5_alt), digits = 2)
 ```
-
 :::
-
+:::
 
 # Daten (5x3 Blöcke, gesamt 15 Blöcke)
 
@@ -879,7 +1797,31 @@ kable(contrast_median, caption = "Lineare Kontraste (Median)")
 #| eval: true
 #| echo: false
 
-darts_binned <- darts_distance %>%
+darts_binned_3_jung <- darts_distance %>%
+  filter(number %in% 1:8) %>%
+  mutate(
+    blockgruppe = case_when(
+      block %in% 1:3 ~ "Block 1–3",
+      block %in% 4:6 ~ "Block 4–6",
+      block %in% 7:9 ~ "Block 7–9",
+      block %in% 10:12 ~ "Block 10–12",
+      block %in% 13:15 ~ "Block 13–15",
+      TRUE ~ NA_character_
+    ),
+    # Faktor definieren für richtige Sortierung
+    blockgruppe = factor(blockgruppe,
+                         levels = c("Block 1–3", "Block 4–6", "Block 7–9", "Block 10–12", "Block 13–15"))
+  ) %>%
+  filter(!is.na(blockgruppe)) %>%
+  group_by(vp, blockgruppe) %>%
+  summarise(
+    mean_dist = mean(distance, na.rm = TRUE),
+    median_dist = median(distance, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Alt
+darts_binned_3_old <- darts_old_distance %>%
   filter(number %in% 1:8) %>%
   mutate(
     blockgruppe = case_when(
@@ -909,46 +1851,65 @@ darts_binned <- darts_distance %>%
 #| eval: true
 #| echo: false
 
+#Jung
 # Mittelwerte transponieren
-means_wide_3 <- darts_binned %>%
+means_wide_3_jung <- darts_binned_3_jung %>%
   select(vp, blockgruppe, mean_dist) %>%
   pivot_wider(names_from = blockgruppe, values_from = mean_dist)
 
 # Mediane transponieren
-medians_wide_3 <- darts_binned %>%
+medians_wide_3_jung <- darts_binned_3_jung %>%
   select(vp, blockgruppe, median_dist) %>%
   pivot_wider(names_from = blockgruppe, values_from = median_dist)
 
+# Blätter hinzufügen
+addWorksheet(wb, "Mittelwert 3 Blöcke jung")
+addWorksheet(wb, "Median 3 Blöcke jung")
 
+# Daten schreiben
+writeData(wb, sheet = "Mittelwert 3 Blöcke jung", means_wide_3_jung)
+writeData(wb, sheet = "Median 3 Blöcke jung", medians_wide_3_jung)
+
+# Datei speichern
+saveWorkbook(wb, pfad, overwrite = TRUE)
 ```
 
 ```{r}
 #| eval: true
 #| echo: false
 
+#Alt
+# Mittelwerte transponieren
+means_wide_3_old <- darts_binned_3_old %>%
+  select(vp, blockgruppe, mean_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = mean_dist)
+
+# Mediane transponieren
+medians_wide_3_old <- darts_binned_3_old %>%
+  select(vp, blockgruppe, median_dist) %>%
+  pivot_wider(names_from = blockgruppe, values_from = median_dist)
+
 # Blätter hinzufügen
-addWorksheet(wb, "Mittelwert 3 Blöcke")
-addWorksheet(wb, "Median 3 Blöcke")
+addWorksheet(wb, "Mittelwert 3 Blöcke alt")
+addWorksheet(wb, "Median 3 Blöcke alt")
 
 # Daten schreiben
-writeData(wb, sheet = "Mittelwert 3 Blöcke", means_wide_3)
-writeData(wb, sheet = "Median 3 Blöcke", medians_wide_3)
+writeData(wb, sheet = "Mittelwert 3 Blöcke alt", means_wide_3_old)
+writeData(wb, sheet = "Median 3 Blöcke alt", medians_wide_3_old)
 
 # Datei speichern
 saveWorkbook(wb, pfad, overwrite = TRUE)
 ```
 
 ::: {.panel-tabset}
-## Distanzen
-
-3 Blöcke á 8 Würfe entspricht 24 Würfen (siehe hier: 25 Würfe)
+## Diagramm
 
 ```{r}
 #| eval: true
 #| echo: false
 
 # Aggregieren nach Blockgruppe (über alle vp)
-darts_binned_summary <- darts_binned %>%
+darts_binned_summary_3_jung <- darts_binned_3_jung%>%
   group_by(blockgruppe) %>%
   summarise(
     mean_dist = mean(mean_dist, na.rm = TRUE),
@@ -956,7 +1917,7 @@ darts_binned_summary <- darts_binned %>%
     .groups = "drop"
   )
 
-darts_binned_long <- darts_binned_summary %>%
+darts_binned_long <- darts_binned_summary_3_jung %>%
   pivot_longer(cols = c(mean_dist, median_dist),
                names_to = "Typ",
                values_to = "Distanz") %>%
@@ -969,7 +1930,7 @@ graph <- ggplot(darts_binned_long, aes(x = blockgruppe, y = Distanz, color = Typ
   geom_point(size = 2) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dotted") +
   
-  scale_y_continuous(limits = c(70, 90), breaks = seq(70, 90, by = 5)) +
+  scale_y_continuous(limits = c(65, 90), breaks = seq(65, 90, by = 5)) +
   
   scale_color_manual(
     name = "Legende:",
@@ -991,101 +1952,44 @@ graph <- ggplot(darts_binned_long, aes(x = blockgruppe, y = Distanz, color = Typ
 ggplotly(graph)
 ```
 
-## Fehler
+## Mittelwert (alt)
 
 ```{r}
 #| eval: true
 #| echo: false
 
-# Fehler berechnen
-# NA-Zählung pro Block
-na_counts <- darts_distance %>%
-  filter(number %in% 1:8) %>%
-  group_by(block) %>%
-  summarise(missing = sum(is.na(distance)), .groups = "drop")
-
-# Blockgruppen definieren
-na_binned <- na_counts %>%
-  mutate(
-    blockgruppe = case_when(
-      block %in% 1:3 ~ "Block 1–3",
-      block %in% 4:6 ~ "Block 4–6",
-      block %in% 7:9 ~ "Block 7–9",
-      block %in% 10:12 ~ "Block 10–12",
-      block %in% 13:15 ~ "Block 13–15",
-      TRUE ~ NA_character_
-    )
-  ) %>%
-  filter(!is.na(blockgruppe)) %>%
+# Aggregieren nach Blockgruppe (über alle vp)
+darts_binned_summary_3_old <- darts_binned_3_old %>%
   group_by(blockgruppe) %>%
   summarise(
-    fehlersumme = sum(missing),
-    fehlermittel = mean(missing),
-    .groups = "drop"
-  )
-```
-
-```{r}
-#| eval: true
-#| echo: false
-#| include: false
-
-# diagramm
-# Schritt 1: Fehlende Werte (NA) zählen pro Block
-na_counts <- darts_distance %>%
-  filter(number %in% 1:8) %>%
-  group_by(block, vp) %>%
-  summarise(n_missing = sum(is.na(distance)), .groups = "drop") %>%
-  group_by(block) %>%
-  summarise(missing = sum(n_missing), .groups = "drop")
-
-# Schritt 2: Blockgruppen zuordnen und aggregieren
-na_binned <- na_counts %>%
-  mutate(
-    blockgruppe = case_when(
-      block %in% 1:3 ~ "Block 1–3",
-      block %in% 4:6 ~ "Block 4–6",
-      block %in% 7:9 ~ "Block 7–9",
-      block %in% 10:12 ~ "Block 10–12",
-      block %in% 13:15 ~ "Block 13–15",
-      TRUE ~ NA_character_
-    )
-  ) %>%
-  filter(!is.na(blockgruppe)) %>%
-  group_by(blockgruppe) %>%
-  summarise(
-    fehlersumme = sum(missing),
-    fehlermittel = mean(missing),
+    mean_dist = mean(mean_dist, na.rm = TRUE),
+    median_dist = mean(median_dist, na.rm = TRUE),  # Achtung: Mittel der Mediane
     .groups = "drop"
   )
 
-# Faktor-Reihenfolge definieren
-na_binned$blockgruppe <- factor(
-  na_binned$blockgruppe,
-  levels = c("Block 1–3", "Block 4–6", "Block 7–9", "Block 10–12", "Block 13–15")
-)
-```
+darts_binned_long_3_old <- darts_binned_summary_3_old %>%
+  pivot_longer(cols = c(mean_dist, median_dist),
+               names_to = "Typ",
+               values_to = "Distanz") %>%
+  mutate(Typ = recode(Typ,
+                      "mean_dist" = "Mittelwert",
+                      "median_dist" = "Median"))
 
-```{r}
-#| eval: true
-#| echo: false
-
-# pLot
-missingv = ggplot(na_binned, aes(x = blockgruppe)) +
-  geom_line(aes(y = fehlersumme, group = 1, color = "Fehlersumme"), size = 1.2) +
-  geom_point(aes(y = fehlersumme, color = "Fehlersumme"), size = 2) +
-
-  geom_line(aes(y = fehlermittel, group = 1, color = "Fehlermittelwert"), linetype = "dashed", size = 1) +
-  geom_point(aes(y = fehlermittel, color = "Fehlermittelwert"), size = 2, shape = 17) +
-
+graph <- ggplot(darts_binned_long_3_old, aes(x = blockgruppe, y = Distanz, color = Typ, group = Typ)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dotted") +
+  
+  scale_y_continuous(limits = c(65, 100), breaks = seq(65, 100, by = 5)) +
+  
   scale_color_manual(
     name = "Legende:",
-    values = c("Fehlersumme" = "firebrick", "Fehlermittelwert" = "darkorange3")
+    values = c("Mittelwert" = "azure4", "Median" = "darkgoldenrod2")
   ) +
 
   labs(
     x = "Blockgruppe",
-    y = "Fehleranzahl (NA)"
+    y = "Distanz (in mm)"
   ) +
   theme_minimal(base_size = 12) +
   theme(
@@ -1094,19 +1998,18 @@ missingv = ggplot(na_binned, aes(x = blockgruppe)) +
     plot.title = element_text(hjust = 0.5, face = "bold"),
     axis.title = element_text(face = "bold")
   )
-ggplotly(missingv)
+
+ggplotly(graph)
 ```
 
-
-:::
-## Tabelle
+## Daten
 ::: {.panel-tabset}
-## Mittelwert
+## Mittelwert (jung)
 ```{r}
 #| eval: true
 #| echo: false
 
-datatable(means_wide_3,
+datatable(means_wide_3_jung,
   rownames = F,
   colnames = c("VP", "Block 1-3", "Block 4-6", "Block 7-9", "Block 10-12", "Block 13-15"),
   extensions = 'Buttons',
@@ -1116,15 +2019,15 @@ datatable(means_wide_3,
     pageLength = 10
   )
 ) %>%
-  formatRound(columns = 2:ncol(means_wide_3), digits = 2)
+  formatRound(columns = 2:ncol(means_wide_3_jung), digits = 2)
 ```
 
-## Median 
+## Median (jung)
 ```{r}
 #| eval: true
 #| echo: false
 
-datatable(medians_wide_3,
+datatable(medians_wide_3_jung,
   rownames = F,
   colnames = c("VP", "Block 1-3", "Block 4-6", "Block 7-9", "Block 10-12", "Block 13-15"),
   extensions = 'Buttons',
@@ -1134,148 +2037,335 @@ datatable(medians_wide_3,
     pageLength = 10
   )
 ) %>%
-  formatRound(columns = 2:ncol(medians_wide_3), digits = 2)
+  formatRound(columns = 2:ncol(medians_wide_3_jung), digits = 2)
 ```
+
+## Mittelwert (alt)
+```{r}
+#| eval: true
+#| echo: false
+
+datatable(means_wide_3_old,
+  rownames = F,
+  colnames = c("VP", "Block 1-3", "Block 4-6", "Block 7-9", "Block 10-12", "Block 13-15"),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(means_wide_3_old), digits = 2)
+```
+
+## Median (alt)
+```{r}
+#| eval: true
+#| echo: false
+
+datatable(medians_wide_3_old,
+  rownames = F,
+  colnames = c("VP", "Block 1-3", "Block 4-6", "Block 7-9", "Block 10-12", "Block 13-15"),
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    pageLength = 10
+  )
+) %>%
+  formatRound(columns = 2:ncol(medians_wide_3_old), digits = 2)
+```
+:::
 :::
 
 
-## Anova mit Messwiederholung
+## NIRS Auswertung
+
+::: {.callout-important}
+Hier habe ich `r_n_=7` Proband*innen ausgewertet.
+:::
+
+
+### Plots
+
+**15 Blöcke á 7 Würfe (Pilot 1)**
+
+* **Aktivität**: 4s / Wurf = 28s
+* **Pause:** 24-32s
+* **_n_**= 7
 
 ::: {.panel-tabset}
-## Mittelwert
-```{r}
-#| eval: true
-#| include: false
 
-# Wichtig: Faktoren korrekt setzen
-darts_binned$vp <- factor(darts_binned$vp)
-darts_binned$blockgruppe <- factor(darts_binned$blockgruppe)
-
-# ezANOVA ausführen
-anova_result = ezANOVA(
-  data = darts_binned,
-  dv = mean_dist,             # abhängige Variable
-  wid = vp,                   # within-subjects Faktor: Person
-  within = blockgruppe,       # repeated-measures Faktor
-  type = 3,                   # entspricht typischen SPSS-Output
-  detailed = TRUE
-  )
-
-# Wiederholte Messung mit afex
-aov_afex <- aov_ez(
-  id = "vp",                         # Probanden-ID
-  dv = "mean_dist",                 # abhängige Variable
-  within = "blockgruppe",           # Faktor mit Messwiederholung
-  data = darts_binned,
-  type = 3                          # entspricht SPSS
-  )
-
-#Emmeans-Modell
-emm <- emmeans(aov_afex, ~ blockgruppe)
-
-# Linearen Kontrast berechnen
-contrast = contrast(emm, method = "poly")  # "poly" = polynomial contrasts (linear, quadratic, ...)
-```
-
-```{r}
-#| eval: true
-#| echo: false
-
-# ANOVA-Ergebnisse extrahieren
-anova_table <- anova_result$ANOVA %>%
-  mutate(across(where(is.numeric), ~ round(., 3)))  # Runden
-kable(anova_table, caption = "ANOVA Ergebnisse (ezANOVA)")
-kable(contrast)
-```
-
-## Median
-```{r}
-#| eval: true
-#| include: false
-
-# Wichtig: Faktoren korrekt setzen
-darts_binned$vp <- factor(darts_binned$vp)
-darts_binned$blockgruppe <- factor(darts_binned$blockgruppe)
-
-# ezANOVA ausführen
-anova_result = ezANOVA(
-  data = darts_binned,
-  dv = median_dist,             # abhängige Variable
-  wid = vp,                   # within-subjects Faktor: Person
-  within = blockgruppe,       # repeated-measures Faktor
-  type = 3,                   # entspricht typischen SPSS-Output
-  detailed = TRUE
-  )
-
-# Wiederholte Messung mit afex
-aov_afex <- aov_ez(
-  id = "vp",                         # Probanden-ID
-  dv = "median_dist",                 # abhängige Variable
-  within = "blockgruppe",           # Faktor mit Messwiederholung
-  data = darts_binned,
-  type = 3                          # entspricht SPSS
-  )
-
-#Emmeans-Modell
-emm <- emmeans(aov_afex, ~ blockgruppe)
-
-# Linearen Kontrast berechnen
-contrast = contrast(emm, method = "poly")  # "poly" = polynomial contrasts (linear, quadratic, ...)
-```
-
-```{r}
-#| eval: true
-#| echo: false
-
-# ANOVA-Ergebnisse extrahieren
-anova_table <- anova_result$ANOVA %>%
-  mutate(across(where(is.numeric), ~ round(., 3)))  # Runden
-kable(anova_table, caption = "ANOVA Ergebnisse (ezANOVA)")
-kable(contrast)
-```
-
-
+::: {.grid columns=2}
+![](https://via.placeholder.com/150)
+![](https://via.placeholder.com/150)
+![](https://via.placeholder.com/150)
+![](https://via.placeholder.com/150)
+:::
 :::
 
 
-## Prozentualer Lernerfolg
+### Preprocessing
+
+**Repare data**
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+hmrR_PreprocessIntensity_NAN(int);
+hmrR_PreprocessIntensity_Negative(int);
+```
+
+**Intensity to OD**
+```{matlab}
+#| eval: false
+#| echo: true
+
+dod = hmrR_Intensity2OD(int);
+```
+
+**Motion Artefact Detection** 
+
+* eigentlich nicht notwendig, wenn man TDDR und Wavelet verwendet, d.h. hier überflüssig, aber nicht schlimm
+* Problem: es detektiert nicht zwingend alle Artefakte
+* Lösung: Kombination aus TDDR und Wavelet beheben Spikes und plötzliche Baseline shifts zuverlässig
+```{matlab}
+#| eval: false
+#| echo: true
+
+% MotionArtefact Detection
+
+
+MotArt.tMotion    = 1.0; % tastet jetzt in 1s-Schritten ab
+MotArt.thresh     = 2.0; % wird in dem Fenster ein Signalwechsel >2.0 entdeckt, ist es ein Artefakt
+MotArt.NewRejLim  = 0.5;
+MotArt.MaxLoops   = 3;
+MotArt.MaskTime   = 1; % um jedes Artefakt wird zusätzlich 1s davor und danach markiert
+```
+
+**Pruning channels**
+
+* sehr schlechte Kanäle werden hier auf 0 gesetzt
+* auf Grundlage der Signal-to-Noise-Ratio und dem Scalp-Coupling-Index
+* Scalp-Coupling-Index ist hier deaktiviert
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+
+%Homer Algorithmus
+mlActHmr = hmrR_PruneChannels(int, probe, mlActMan, tInc_pruning, dRange, SNRthresh, SDrange);
+
+%SCI
+[mlActSCI, SCI] = ot_hmr3_SCI(dod, SCIfcut_min, SCIfcut_max, SCIthresh, tInc_pruning);
+
+dRange = [5e-04, 1e+00];  %# NIRSport2 - signal is here 
+SNRthresh = 6;
+SDrange = [0 45]; %# alle channel, die bis zu 45mm auseinander liegen, werden in die Analyse eingeschlossen
+
+SCIthresh = 0;  %# auf Grundlage von SCI wird nicht rejected, nur auf Grundlage vom SNR
+SCIfcut_min = 0.8;  
+SCIfcut_max = 2.2;   
+
+```
+
+**Motion Artifacts Correction**
+
+* deinieren von sehr schlechten Kanälen, die ich nicht berücksichtigen möchte
+* danach Anwendung des TDDR- und Wavelet-Filters (Reihenfolge zwingend erforderlich!)
+
+```{r}
+#| eval: false
+#| echo: true
+
+MaxBadCh  = 0.30;      %# proportion of bad channels to define a bad time
+    LimtRej   = [10 Inf];   %# if a bad segment is outside this limits, mark it as good
+    LimtInc   = [5 Inf];  %# if a good segment is outside this limits, mark it as bad
+    tMask     = 2;         % #making for tInc
+    tInc_beforecorr = ot_hmr3_tIncDef(dod, tIncAutoCh, mlAct, MaxBadCh, LimtRej, LimtInc, tMask);
+
+% Turnon filters
+
+turnon_tddr = 1;
+iqr_wavelet = 1.2; 
+turnon_wavelet = 1;
+
+    
+% TDDR
+    if turnon_tddr
+        fprintf('\n-> MOTION ARTEFACTS CORRECTION TDDR...\n')
+        dod = ot_hmr_MotionCorrectTDDR(dod, mlAct, []);
+    end
+    
+% Wavelet
+    fprintf('\n-> MOTION ARTEFACTS CORRECTION WAVELET...\n')
+    dod = hmrR_MotionCorrectWavelet(dod, mlAct, mlAct, iqr_wavelet, turnon_wavelet);
+
+```
+
+**Stimuli Rejection**
+
+* über turn-on kann ich entscheiden, ob ich den StimRej aktivieren möchte oder nicht
+* ich habe es ausgeschalten, um möglichst viele Sequenzen in der Auswertung zu behalten
+```{matlab}
+#| eval: false
+#| echo: true
+
+stim = hmrR_StimRejection(dod, stim, tInc, tInc, tRange_StimRej);
+
+tRange_StimRej = [-2,2]
+turnon_stim_rejection = 0;
+```
+
+**Bandpass Filter**
+
+* hier ist, wenn ich eine polynomische Driftorder (=3, siehe GLM) annehme nur der lowpass-filter
+* highpass kann dementsprechend gelöscht werden
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+dod = hmrR_BandpassFilt(dod, hpf, lpf);
+
+hpf = 0.01
+lpf = 0.5
+```
+
+**OD to concentration**
+```{matlab}
+#| eval: false
+#| echo: true
+
+dc = hmrR_OD2Conc(dod, probe, ppf);
+
+ppf = [5.5, 5.5]
+```
+
+
+**Accelerometer als Regressor für GLM vorbereiten**
+
+```{matlab}
+#| eval: false
+#| echo: true
+    
+    %# Rohdaten laden
+    accX = snirf.aux(1).dataTimeSeries;
+    accY = snirf.aux(2).dataTimeSeries;
+    accZ = snirf.aux(3).dataTimeSeries;
+    t_acc = snirf.aux(1).time;
+
+    %# Samplingrate des Accelerometers
+    fs_acc = 1 / mean(diff(t_acc));
+    fprintf('Accelerometer-Samplingrate: %.2f Hz\n', fs_acc);
+
+    %# PCA oder Betrag auf Rohdaten (noch ungefiltert)
+    acc_all = [accX(:), accY(:), accZ(:)];
+    use_pca = true;
+
+    if use_pca
+        acc_all = normalize(acc_all);  % z-Transformation vor PCA
+        [coeff, score] = pca(acc_all);
+        acc_motion = score(:,1);
+        fprintf('Bewegungssignal aus PCA\n');
+    else
+        acc_motion = sqrt(sum(acc_all.^2, 2));
+        fprintf('Bewegungssignal als Betrag (acc_mag)\n');
+    end
+
+    %# Interpolation auf fNIRS-Zeitachse
+    t_nirs = snirf.data.time;
+    acc_interp = interp1(t_acc, acc_motion, t_nirs, 'linear', 'extrap');
+
+    %# === Filterung nach Interpolation ===
+    visual = false;
+    [acc_interp_filt, ~] = acc_butter_filter(acc_interp, 1 / mean(diff(t_nirs)), visual);
+
+    %# Z-Transformation vor GLM
+    acc_interp = acc_interp_filt - mean(acc_interp_filt);
+    acc_interp = acc_interp / std(acc_interp);
+```
+
+**GLM**
+
+* hier nehme ich z.B. die Short-Distance-Channel und die Accelerometer-Daten mit als Regressoren in die Berechnung ein
+* Time range darf nicht zu lang sein, damit es das GLM nicht destabilisiert, hier: Zeitraum der Aktivität
+* Später rechne ich mit dcAvg weiter 
+```{matlab}
+#| eval: false
+#| echo: true
+
+%# GLM estimation
+    Aaux = acc_interp;  % Vektor: [N x 1], Länge = Länge von dc
+    rcMap = [];
+    [data_yavg, data_yavgstd, nTrials, data_ynew, data_yresid, data_ysum2, beta_blks, yR_blks, hmrstats] = ...
+    hmrR_GLM(dc, stim, probe, mlAct, Aaux, tInc, rcMap, trange_glm, glmSolveMethod, idxBasis, paramsBasis, rhoSD_ssThresh, flagNuisanceRMethod, driftOrder, c_vector)
+    
+conditions = {'1', '2', '3'};
+trange_glm = [-2, 28];
+glmSolveMethod = 1;
+rhoSD_ssThresh = 15;
+flagNuisanceRMethod = 1;
+driftOrder = 3;
+c_vector = zeros(1, length(conditions)); % jetzt ist c_vector leer
+
+idxBasis = 1;
+paramsBasis = [0.5 0.5];
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Der prozentuale Lernerfolg berechnet sich wie folgt: $100\% - \left( \frac{\text{Endwert}}{\text{Startwert}} \times 100\% \right)$. 
 
-### Mittelwert
-
 ```{r}
 #| eval: true
 #| echo: false
 
-# Zwei separate Tabellen für Anfangs- und Endwerte
-start_values <- darts_binned %>%
-  filter(blockgruppe == "Block 1–3") %>%
-  select(vp, start = mean_dist)
-
-end_values <- darts_binned %>%
-  filter(blockgruppe == "Block 13–15") %>%
-  select(vp, end = mean_dist)
-
-# Join beider Tabellen
-lernerfolg_df <- left_join(start_values, end_values, by = "vp") %>%
-  mutate(
-    start_prozent = 100,
-    end_prozent = (end / start) * 100,
-    lernerfolg = start_prozent - end_prozent
-  )
+# # Zwei separate Tabellen für Anfangs- und Endwerte
+# start_values <- darts_binned %>%
+#   filter(blockgruppe == "Block 1–3") %>%
+#   select(vp, start = mean_dist)
+# 
+# end_values <- darts_binned %>%
+#   filter(blockgruppe == "Block 13–15") %>%
+#   select(vp, end = mean_dist)
+# 
+# # Join beider Tabellen
+# lernerfolg_df <- left_join(start_values, end_values, by = "vp") %>%
+#   mutate(
+#     start_prozent = 100,
+#     end_prozent = (end / start) * 100,
+#     lernerfolg = start_prozent - end_prozent
+#   )
 ```
-
-Im Mittel beträgt der Lernerfolg (Mittelwert) _m_=`r mean(lernerfolg_df$lernerfolg)`%.
-<details>
-<summary><strong>Ergebnisse anzeigen</strong></summary>
 
 ```{r}
 #| eval: true
 #| echo: false
 #| table-fold: true
 
-kable(lernerfolg_df, digits = 2, caption = "Prozentualer Lernerfolg pro Proband*in")
+# kable(lernerfolg_df, digits = 2, caption = "Prozentualer Lernerfolg pro Proband*in")
 ```
 
 ```{r}
@@ -1283,39 +2373,145 @@ kable(lernerfolg_df, digits = 2, caption = "Prozentualer Lernerfolg pro Proband*
 #| echo: false
 #| include: false
 
-# Zwei separate Tabellen für Anfangs- und Endwerte
-start_values <- darts_binned %>%
-  filter(blockgruppe == "Block 1–3") %>%
-  select(vp, start = median_dist)
-
-end_values <- darts_binned %>%
-  filter(blockgruppe == "Block 13–15") %>%
-  select(vp, end = median_dist)
-
-# Join beider Tabellen
-lernerfolg_df_med_3<- left_join(start_values, end_values, by = "vp") %>%
-  mutate(
-    start_prozent = 100,
-    end_prozent = (end / start) * 100,
-    lernerfolg = start_prozent - end_prozent
-  )
+# # Zwei separate Tabellen für Anfangs- und Endwerte
+# start_values <- darts_binned %>%
+#   filter(blockgruppe == "Block 1–3") %>%
+#   select(vp, start = median_dist)
+# 
+# end_values <- darts_binned %>%
+#   filter(blockgruppe == "Block 13–15") %>%
+#   select(vp, end = median_dist)
+# 
+# # Join beider Tabellen
+# lernerfolg_df_med_3<- left_join(start_values, end_values, by = "vp") %>%
+#   mutate(
+#     start_prozent = 100,
+#     end_prozent = (end / start) * 100,
+#     lernerfolg = start_prozent - end_prozent
+#   )
 ```
-
-### Median
-Im Mittel beträgt der Lernerfolg (Median) _m_=`r mean(lernerfolg_df_med_3$lernerfolg)`%.
-<details>
-<summary><strong>Ergebnisse anzeigen</strong></summary>
 
 ```{r}
 #| eval: true
 #| echo: false
 
 
-kable(lernerfolg_df, digits = 2, caption = "Prozentualer Lernerfolg pro Proband*in")
+# kable(lernerfolg_df, digits = 2, caption = "Prozentualer Lernerfolg pro Proband*in")
 ```
 
+```{r}
+#| eval: true
+#| echo: false
 
+# # Anfangs- und Endwerte pro VP (Block 1 & Block 20)
+# start_values <- mean_distance %>%
+#   filter(block == 1) %>%
+#   select(vp, start = mean_distance)
+# 
+# end_values <- mean_distance %>%
+#   filter(block == 20) %>%
+#   select(vp, end = mean_distance)
+# 
+# # Prozentualer Lernerfolg
+# lernerfolg_df_mean_1_20 <- left_join(start_values, end_values, by = "vp") %>%
+#   mutate(
+#     start_prozent = 100,
+#     end_prozent = (end / start) * 100,
+#     lernerfolg = start_prozent - end_prozent
+#   )
 
+```
 
+```{r}
+#| eval: true
+#| echo: false
+#| include: false
 
+# start_values <- median_distance %>%
+#   filter(block == 1) %>%
+#   select(vp, start = median_distance)
+# 
+# end_values <- median_distance %>%
+#   filter(block == 20) %>%
+#   select(vp, end = median_distance)
+# 
+# lernerfolg_df_median_1_20 <- left_join(start_values, end_values, by = "vp") %>%
+#   mutate(
+#     start_prozent = 100,
+#     end_prozent = (end / start) * 100,
+#     lernerfolg = start_prozent - end_prozent
+#   )
 
+```
+
+```{r}
+#| eval: true
+#| echo: false
+#| table-fold: true
+
+# kable(lernerfolg_df_mean_1_20, digits = 2, caption = "Lernerfolg von Block 1 zu 20 (Mittelwert)")
+```
+
+```{r}
+#| eval: true
+#| echo: false
+#| 
+# kable(lernerfolg_df_median_1_20, digits = 2, caption = "Lernerfolg von Block 1 zu 20 (Median)")
+```
+
+```{r}
+#| eval: true
+#| echo: false
+
+# # Anfangs- und Endwerte: Block 1 & 20
+# start_values_old_mean <- mean_distance_old %>%
+#   filter(block == 1) %>%
+#   select(vp, start = mean_distance)
+# 
+# end_values_old_mean <- mean_distance_old %>%
+#   filter(block == 20) %>%
+#   select(vp, end = mean_distance)
+# 
+# # Lernerfolg berechnen
+# lernerfolg_df_mean_old_1_20 <- left_join(start_values_old_mean, end_values_old_mean, by = "vp") %>%
+#   mutate(
+#     start_prozent = 100,
+#     end_prozent = (end / start) * 100,
+#     lernerfolg = start_prozent - end_prozent
+  )
+```
+
+```{r}
+#| eval: true
+#| echo: false
+#| include: false
+
+# start_values_old_median <- median_distance_old %>%
+#   filter(block == 1) %>%
+#   select(vp, start = median_distance)
+# 
+# end_values_old_median <- median_distance_old %>%
+#   filter(block == 20) %>%
+#   select(vp, end = median_distance)
+# 
+# lernerfolg_df_median_old_1_20 <- left_join(start_values_old_median, end_values_old_median, by = "vp") %>%
+#   mutate(
+#     start_prozent = 100,
+#     end_prozent = (end / start) * 100,
+#     lernerfolg = start_prozent - end_prozent
+#   )
+```
+
+```{r}
+#| eval: true
+#| echo: false
+
+# kable(lernerfolg_df_mean_old_1_20, digits = 2, caption = "Lernerfolg von Block 1 zu 20 (Mittelwert, alt)")
+```
+
+```{r}
+#| eval: true
+#| echo: false
+#| 
+# kable(lernerfolg_df_median_old_1_20, digits = 2, caption = "Lernerfolg von Block 1 zu 20 (Median)")
+```
