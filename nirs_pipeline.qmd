@@ -1,5 +1,5 @@
 ---
-title: "NIRS Pipeline"
+title: "Accelerometer-Lösung"
 author: Lina Fricke
 date: today
 format: 
@@ -31,96 +31,290 @@ execute:
   error: true
 code-fold: false
 ---
+## Preprocessing (vor GLM)
 
-## Data Quality 
+**Datenqualität Check**
 
-Data quality was assessed with the QT NIRS Toolbox [@hernandez2020nirsplot] that combines SCI and PSP. 
+* mit QT-Nirs [@hernandez2020nirsplot]
+* 70 % der Kanäle eines Probanden müssen mind. eine Datenqualität von 70 % erreichen
 
-### Cutting the signal
-
-As I am just interested in the data quality of the activity, I cut the baseline measurement that was done before the activity.
-
-
-
-
-## Preprocessing
-
-#### Loading useful toolboxes
+**Repare data**
 ```{matlab}
 #| eval: false
 #| echo: true
 
-% Homer3 ------------------------------------------------------------------
-% Path to the Homer folder
-dir_homer = ['/Users/linafricke/Documents/MATLAB/Homer3-1.80.2'];
-% Add Homer3
-cd(dir_homer)
-setpaths
-
-% Add a folder and subfolders with some extra custom functions ------------
-dir_extracodes = '/Users/linafricke/Desktop/fnirs course/extra_codes';
-addpath(genpath(dir_extracodes))
+hmrR_PreprocessIntensity_NAN(int);
+hmrR_PreprocessIntensity_Negative(int);
 ```
 
-#### Defining working path directory
+**Intensity to OD**
 ```{matlab}
-% Define a main folder
-folder_main = '/Users/linafricke/Desktop/NIRS data/einschluss-70-70/high';
+#| eval: false
+#| echo: true
 
-% Set the folder with the codes as the current directory
-cd(fullfile(folder_main))
-
-% Path to the input data folder (data in dir_dataraw\<subject-folder>\nirs)
-dir_data_raw  = fullfile(folder_main);
-
-% Path to the output data folder
-dir_data_pp  = fullfile('/Users/linafricke/Desktop/NIRS data/');
-
-% Define a main folder and set as current directory
-folder_main = '/Users/linafricke/Desktop/NIRS data/einschluss-70-70';
-cd(fullfile(folder_main))
-
-% subjects to analysze (subfolders in dir_dataraw)
-
-subjects = {
-    'vp02';...
-    'vp03';...
-    'vp04';...
-    % 'vp07';...
-    % 'vp08';...
-    % 'vp10';...
-    % 'vp11';...
-    % 'vp13';...
-    % 'vp15';...
-    };
+dod = hmrR_Intensity2OD(int);
 ```
- 
-Here we had 2 measurements (day 1 and day 2) for each subject. Depending on 
+
+**Motion Artefact Detection** 
+
+* Problem: es detektiert nicht zwingend alle Artefakte
+* Lösung: Kombination aus TDDR und Wavelet beheben Spikes und plötzliche Baseline shifts zuverlässig
 ```{matlab}
-for i = 1:length(subjects)
-    subj = subjects{i};
-    
-    % Pfad zum spezifischen Datenordner (z. B. .../vp02/vp02_D01)
-    sub_data_folder = fullfile(folder_main, subj, [upper(subj) '_D01']);
-     
-    % % Pfad zum spezifischen Datenordner (z. B. .../vp02/vp02_D02)
-    % sub_data_folder = fullfile(folder_main, subj, [upper(subj) '_D02']);
+#| eval: false
+#| echo: true
 
-    % Existiert der Ordner?
-    if ~isfolder(sub_data_folder)
-        warning('Ordner nicht gefunden: %s', sub_data_folder);
-        continue;
-    end
-end
+%# MotionArtefact Detection
+
+
+MotArt.tMotion    = 1.0; % tastet jetzt in 1s-Schritten ab
+MotArt.thresh     = 2.0; % wird in dem Fenster ein Signalwechsel >2.0 entdeckt, ist es ein Artefakt
+MotArt.NewRejLim  = 0.5;
+MotArt.MaxLoops   = 3;
+MotArt.MaskTime   = 1; % um jedes Artefakt wird zusätzlich 1s davor und danach markiert
 ```
 
+**Pruning channels**
+
+* sehr schlechte Kanäle werden hier auf 0 gesetzt
+* auf Grundlage der Signal-to-Noise-Ratio und dem Scalp-Coupling-Index
+* Scalp-Coupling-Index ist hier deaktiviert
+```{matlab}
+#| eval: false
+#| echo: true
 
 
-You can add options to executable code like this 
+%# Homer Algorithmus
+mlActHmr = hmrR_PruneChannels(int, probe, mlActMan, tInc_pruning, dRange, SNRthresh, SDrange);
 
+%# SCI
+[mlActSCI, SCI] = ot_hmr3_SCI(dod, SCIfcut_min, SCIfcut_max, SCIthresh, tInc_pruning);
+
+dRange = [5e-04, 1e+00];  %# NIRSport2 - signal is here 
+SNRthresh = 6;
+SDrange = [0 45]; %# alle channel, die bis zu 45mm auseinander liegen, werden in die Analyse eingeschlossen
+
+SCIthresh = 0;  %# auf Grundlage von SCI wird nicht rejected, nur auf Grundlage vom SNR
+SCIfcut_min = 0.8;  
+SCIfcut_max = 2.2;   
+
+```
+
+**Motion Artifacts Correction**
+
+* deinieren von sehr schlechten Kanälen, die ich nicht berücksichtigen möchte
 ```{r}
-#| echo: false
-2 * 2
+#| eval: false
+#| echo: true
+
+MaxBadCh  = 0.30;      %# proportion of bad channels to define a bad time
+    LimtRej   = [10 Inf];   %# if a bad segment is outside this limits, mark it as good
+    LimtInc   = [5 Inf];  %# if a good segment is outside this limits, mark it as bad
+    tMask     = 2;         % #making for tInc
+    tInc_beforecorr = ot_hmr3_tIncDef(dod, tIncAutoCh, mlAct, MaxBadCh, LimtRej, LimtInc, tMask);
+
+%# Turnon filters
+
+turnon_tddr = 1;
+iqr_wavelet = 1.2; 
+turnon_wavelet = 1;
+
+    
+%# TDDR
+    if turnon_tddr
+        fprintf('\n-> MOTION ARTEFACTS CORRECTION TDDR...\n')
+        dod = ot_hmr_MotionCorrectTDDR(dod, mlAct, []);
+    end
+    
+%# Wavelet
+    fprintf('\n-> MOTION ARTEFACTS CORRECTION WAVELET...\n')
+    dod = hmrR_MotionCorrectWavelet(dod, mlAct, mlAct, iqr_wavelet, turnon_wavelet);
+
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+**Stimuli Rejection**
+
+* über turn-on kann ich entscheiden, ob ich den StimRej aktivieren möchte oder nicht
+* ich habe es ausgeschalten, um möglichst viele Sequenzen in der Auswertung zu behalten
+```{matlab}
+#| eval: false
+#| echo: true
+
+stim = hmrR_StimRejection(dod, stim, tInc, tInc, tRange_StimRej);
+
+tRange_StimRej = [-2,2]
+turnon_stim_rejection = 0;
+```
+
+**Bandpass Filter**
+```{matlab}
+#| eval: false
+#| echo: true
+
+dod = hmrR_BandpassFilt(dod, hpf, lpf);
+
+hpf = 0.01
+lpf = 0.5
+```
+
+**OD to concentration**
+```{matlab}
+#| eval: false
+#| echo: true
+
+dc = hmrR_OD2Conc(dod, probe, ppf);
+
+ppf = [5.5, 5.5]
+```
+
+## Code für das Accelerometer
+
+**Accelerometer als Regressor für GLM vorbereiten**
+
+1. Samplingrate Acc bestimmen
+2. PCA-Filter zum Generieren eines robusten 1D-Bewegungssignals
+3. Acc-Signal interpolieren, damit Acc-Frequenz der NIRS-Frequenz entspricht
+4. Butterworth-Filter
+5. Z-Transformation für GLM
+```{matlab}
+#| eval: false
+#| echo: true
+    
+    %# Rohdaten laden
+    accX = snirf.aux(1).dataTimeSeries;
+    accY = snirf.aux(2).dataTimeSeries;
+    accZ = snirf.aux(3).dataTimeSeries;
+    t_acc = snirf.aux(1).time;
+
+    %# Samplingrate des Accelerometers
+    fs_acc = 1 / mean(diff(t_acc));
+    fprintf('Accelerometer-Samplingrate: %.2f Hz\n', fs_acc);
+
+    %# PCA oder Betrag auf Rohdaten (noch ungefiltert)
+    acc_all = [accX(:), accY(:), accZ(:)];
+    use_pca = true;
+
+    if use_pca
+        acc_all = normalize(acc_all);  % z-Transformation vor PCA
+        [coeff, score] = pca(acc_all);
+        acc_motion = score(:,1);
+        fprintf('Bewegungssignal aus PCA\n');
+    else
+        acc_motion = sqrt(sum(acc_all.^2, 2));
+        fprintf('Bewegungssignal als Betrag (acc_mag)\n');
+    end
+
+    %# Interpolation auf fNIRS-Zeitachse
+    t_nirs = snirf.data.time;
+    acc_interp = interp1(t_acc, acc_motion, t_nirs, 'linear', 'extrap');
+
+    %# === Filterung nach Interpolation ===
+    visual = false;
+    [acc_interp_filt, ~] = acc_butter_filter(acc_interp, 1 / mean(diff(t_nirs)), visual);
+
+    %# Z-Transformation vor GLM
+    acc_interp = acc_interp_filt - mean(acc_interp_filt);
+    acc_interp = acc_interp / std(acc_interp);
+```
+
+**Funktion acc_butter_filter**
+
+* Butterworth LowPass filter
+* twosided/Zero-lag filtering
+* Estimate the Optimum Cutoff Frequency lt. Bing Yu 1999 Journal of Applied Biomechanics [@yu1999estimate]  
+ 
+Protokoll zur Bestimmung der Parameter:
+
+1. estimate mean optimum cutoff frequency for a given sample frequency
+2. filter the raw data with this cutoff frequency --> Vorfiltern um Vergleichswert zu SChaffen (Annäherung) = fc1 & Filter1Daten
+3. Relative Mean Residual zwischen Rohdaten und vorgefilterten Daten aus 2. berechnen
+4. finale Cutoff frequence berechnen
+5. Rohdaten mit optimierter Cutoff Frequency filtern
+```{matlab}
+#| eval: false
+#| echo: true
+
+function [RawData_filt,RawData_filt_norm,fc2] = acc_butter_filter(RawData,sampling_freq,visual)
+
+
+%# 1. Preprocessing the Raw Data (IMU Accerlation & Gyrospcope)
+        
+%# Parameter
+
+n=1;    % n-th grade; filtfilt n =1; oneside filter n=2 (Zeitversatz entsteht)
+        
+%# 1.1 fc für Vorfiltern
+fc1=0.071*sampling_freq-0.00003*sampling_freq^2;
+
+%# 1.2 Butterworth filter mit diesem Vorfilter fc
+Wn1=fc1/(sampling_freq/2); % parameter for low pass Butterworth filter
+[b1,a1] = butter(n,Wn1); % create parameter for usuall filter function in MatLab
+
+RawData1=filtfilt(b1,a1,RawData);
+
+%# 1.3 Berechnen der Residuen aus Rohdaten und Vorfilter
+residual=sqrt(((sum((RawData-RawData1).^2)/(sum((RawData-mean(RawData)).^2)))*100));
+
+%# 1.4 Mit Residuen die optimale fc berechnen 
+fc2=0.06*sampling_freq-0.000022*sampling_freq^2+5.95*1/residual;
+
+%# 1.5 Rohdaten filtern mit optimum cutoff frequency fc2
+Wn2=fc2/(sampling_freq/2); % parameter for low pass Butterworth filter
+[b2,a2] = butter(n,Wn2); % create parameter for usuall filter function in MatLab
+
+RawData_filt=filtfilt(b2,a2,RawData);
+
+%%# 2. Normalize the data         
+RawData_filt_norm=normalize(RawData_filt); % z-score normalization
+%# RawData_filt_norm=movmean(RawData_filt_norm,5); %Moving MEan der 5 umliegenden Punkte um Signal zu glätten
+
+%%# 3. Plot der Daten wenn gewünscht
+if visual==true
+s=inputname(1); % nimmt Namen der Variable die Gefiltert wird
+figure
+hold all
+grid on
+title([s],'FontSize',50);
+plot(RawData,'LineWidth',1.2);
+plot(RawData1,'LineWidth',1.25,'Color',[0.9290 0.6940 0.1250]);
+plot(RawData_filt,'LineWidth',1.5,'Color',[0.8500 0.3250 0.0980]);
+xlabel('Zeit','FontSize',36);
+ylabel('Beschleunigung [g]','FontSize',36)
+legend('Raw Data','Relative Mean Residual','Optimum Cutoff Frequency','FontSize',24);
+ax = gca; % current axes
+set(gca,'XGrid','on', 'YGrid', 'on', 'Fontsize', 30, 'linewidth', 1)
+% a = get(gca,'XTickLabel');
+% set(gca,'XTickLabel',a,'fontsize',18)
+
+
+end
+end
+
+```
+
+
+## ... und am Ende das GLM
+
+**GLM**
+
+* hier nehme ich z.B. die Short-Distance-Channel und die Accelerometer-Daten mit als Regressoren in die Berechnung ein
+```{matlab}
+#| eval: false
+#| echo: true
+
+%# GLM estimation
+    Aaux = acc_interp;  % Vektor: [N x 1], Länge = Länge von dc
+    rcMap = [];
+    [data_yavg, data_yavgstd, nTrials, data_ynew, data_yresid, data_ysum2, beta_blks, yR_blks, hmrstats] = ...
+    hmrR_GLM(dc, stim, probe, mlAct, Aaux, tInc, rcMap, trange_glm, glmSolveMethod, idxBasis, paramsBasis, rhoSD_ssThresh, flagNuisanceRMethod, driftOrder, c_vector)
+    
+conditions = {'1', '2', '3'};
+trange_glm = [-2, 28];
+glmSolveMethod = 1;
+rhoSD_ssThresh = 15;
+flagNuisanceRMethod = 1;
+driftOrder = 3;
+c_vector = zeros(1, length(conditions)); % jetzt ist c_vector leer
+
+idxBasis = 1;
+paramsBasis = [0.5 0.5];
+```
