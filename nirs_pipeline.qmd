@@ -219,7 +219,7 @@ ppf = [5.5, 5.5]
 
 * Butterworth LowPass filter
 * twosided/Zero-lag filtering
-* Estimate the Optimum Cutoff Frequency lt. Bing Yu 1999 Journal of Applied Biomechanics [@yu1999estimate]  
+* Estimate the Optimum Cutoff Frequency [@yu1999estimate]  
  
 Protokoll zur Bestimmung der Parameter:
 
