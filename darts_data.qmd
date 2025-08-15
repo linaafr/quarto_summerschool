@@ -1058,6 +1058,8 @@ contrast_mean_2 <- contrast(emm_mean_2, method = "poly")
 :::{.panel-tabset}
 
 ## Mittelwert (jung)
+
+* Spherizität nicht verletzt
 ```{r}
 #| eval: true
 #| echo: false
@@ -1068,6 +1070,7 @@ kable(contrast_mean_2, caption = "Within-Subject Contrasts")
 
 ## Median (jung)
 
+* Spherizität nicht verletzt
 ```{r}
 #| eval: true
 #| include: false
@@ -1417,6 +1420,8 @@ datatable(medians_wide_4_old,
 
 ## Mittelwert (jung)
 
+* Spherizität ist nicht verletzt
+
 ```{r}
 #| eval: true
 #| include: false
@@ -1468,6 +1473,8 @@ kable(contrast_mean, caption = "Within-Subject Contrasts")
 
 
 ## Median (jung)
+
+* Spherizität ist nicht verletzt
 ```{r}
 #| eval: true
 #| include: false
@@ -2011,6 +2018,8 @@ contrast_median_5_alt <- contrast(emm_median_5_alt, method = "poly")
 ```
 
 ## Mittelwert (jung)
+
+* Spherizität ist nicht verletzt
 ```{r}
 #| eval: true
 #| echo: false
@@ -2020,6 +2029,7 @@ kable(contrast_mean_5_jung, caption = "Within-Subject Contrasts")
 
 ## Median (jung)
 
+* Spherizität ist nicht verletzt
 ```{r}
 #| eval: true
 #| echo: false
