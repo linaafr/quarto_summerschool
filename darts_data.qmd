@@ -308,6 +308,9 @@ darts_old_summary <- darts_old_distance %>%
 
 
 ## Daten (Block 1-20)
+
+* für **jeden Block** (8 Würfe) wurde jeweils der Mittelwert und Median bestimmt
+
 ::: {.panel-tabset}
 ## Diagramm (jung)
 
@@ -713,7 +716,10 @@ kable(contrast_median_old, caption = "Within-Subject Contrasts")
 :::
 :::
 
-# Daten (10x2er Blöcke, gesamt 20 Blöcke)
+# Daten (10x2er Blöcke)
+
+* hier wurden immer **2 Blöcke** zusammengefasst (16 Würfe) und jeweils der Mittelwert und Median berechnet
+* insgesamt **10 Datenpunkte** 
 
 ```{r}
 #| eval: true
@@ -1115,7 +1121,11 @@ kable(contrast_table, caption = "Within-Subject Contrasts")
 :::
 
 
-# Daten (5x4er Blöcke, gesamt 20 Blöcke)
+# Daten (5x4er Blöcke)
+
+* hier wurden immer **4 Blöcke** zusammengefasst (32 Würfe) und jeweils der Mittelwert und Median berechnet
+* insgesamt **5 Datenpunkte**
+
 
 ```{r}
 #| eval: true
@@ -1586,15 +1596,14 @@ kable(contrast_mean_old, caption = "Within-Subject Contrasts")
 kable(anova_table_median_old, caption = "Within-Subject Effects (alt, Median; partielles η²)")
 kable(contrast_median_old, caption = "Within-Subject Contrasts (alt, Median)")
 ```
-
-
-
-
 :::
 :::
 
 
 # Daten (4x5er Blöcke, gesamt 20 Blöcke)
+
+* hier wurden immer **5 Blöcke** zusammengefasst (40 Würfe) und jeweils der Mittelwert und Median berechnet
+* insgesamt **4 Datenpunkte**
 
 ```{r}
 #| eval: true
@@ -2040,6 +2049,10 @@ kable(contrast_median_5_alt, caption = "Within-Subject Contrasts")
 
 # Daten (5x3 Blöcke, gesamt 15 Blöcke)
 
+* hier wurden immer **3 Blöcke** zusammengefasst (24 Würfe) und jeweils der Mittelwert und Median berechnet
+* insgesamt **5 Datenpunkte**
+* es wurden also nur 15 der ursprünglich 20 Blöcke in Betracht gezogen
+
 ```{r}
 #| eval: true
 #| echo: false
@@ -2149,7 +2162,7 @@ saveWorkbook(wb, pfad, overwrite = TRUE)
 ```
 
 ::: {.panel-tabset}
-## Diagramm
+## Diagramm (jung)
 
 ```{r}
 #| eval: true
@@ -2199,7 +2212,7 @@ graph <- ggplot(darts_binned_long, aes(x = blockgruppe, y = Distanz, color = Typ
 ggplotly(graph)
 ```
 
-## Mittelwert (alt)
+## Diagramm (alt)
 
 ```{r}
 #| eval: true
@@ -2323,13 +2336,172 @@ datatable(medians_wide_3_old,
   formatRound(columns = 2:ncol(medians_wide_3_old), digits = 2)
 ```
 :::
+
+## Anova mit Messwiederholung
+
+```{r}
+#| eval: true
+#| include: false
+
+## --- Faktoren setzen ---
+darts_binned_3_jung$vp <- factor(darts_binned_3_jung$vp)
+darts_binned_3_jung$blockgruppe <- factor(
+  darts_binned_3_jung$blockgruppe,
+  levels = c("Block 1–3", "Block 4–6", "Block 7–9", "Block 10–12", "Block 13–15")
+)
+
+darts_binned_3_old$vp <- factor(darts_binned_3_old$vp)
+darts_binned_3_old$blockgruppe <- factor(
+  darts_binned_3_old$blockgruppe,
+  levels = c("Block 1–3", "Block 4–6", "Block 7–9", "Block 10–12", "Block 13–15")
+)
+
+## --- Jung: Mittelwert ---
+anova_result_mean_3_jung <- ezANOVA(
+  data = darts_binned_3_jung,
+  dv = mean_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 3,
+  detailed = TRUE
+)
+
+anova_table_mean_3_jung <- anova_result_mean_3_jung$ANOVA %>%
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%
+  filter(Effect != "(Intercept)") %>%
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+aov_afex_mean_3_jung <- aov_ez(
+  id = "vp",
+  dv = "mean_dist",
+  within = "blockgruppe",
+  data = darts_binned_3_jung,
+  type = 3
+)
+contrast_mean_3_jung <- contrast(emmeans(aov_afex_mean_3_jung, ~ blockgruppe), method = "poly")
+
+## --- Jung: Median ---
+anova_result_median_3_jung <- ezANOVA(
+  data = darts_binned_3_jung,
+  dv = median_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 3,
+  detailed = TRUE
+)
+
+anova_table_median_3_jung <- anova_result_median_3_jung$ANOVA %>%
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%
+  filter(Effect != "(Intercept)") %>%
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+aov_afex_median_3_jung <- aov_ez(
+  id = "vp",
+  dv = "median_dist",
+  within = "blockgruppe",
+  data = darts_binned_3_jung,
+  type = 3
+)
+contrast_median_3_jung <- contrast(emmeans(aov_afex_median_3_jung, ~ blockgruppe), method = "poly")
+
+## --- Alt: Mittelwert ---
+anova_result_mean_3_old <- ezANOVA(
+  data = darts_binned_3_old,
+  dv = mean_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 1,
+  detailed = TRUE
+)
+
+anova_table_mean_3_old <- anova_result_mean_3_old$ANOVA %>%
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%
+  filter(Effect != "(Intercept)") %>%
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+aov_afex_mean_3_old <- aov_ez(
+  id = "vp",
+  dv = "mean_dist",
+  within = "blockgruppe",
+  data = darts_binned_3_old,
+  type = 3
+)
+contrast_mean_3_old <- contrast(emmeans(aov_afex_mean_3_old, ~ blockgruppe), method = "poly")
+
+## --- Alt: Median ---
+anova_result_median_3_old <- ezANOVA(
+  data = darts_binned_3_old,
+  dv = median_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 1,
+  detailed = TRUE
+)
+
+anova_table_median_3_old <- anova_result_median_3_old$ANOVA %>%
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%
+  filter(Effect != "(Intercept)") %>%
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+aov_afex_median_3_old <- aov_ez(
+  id = "vp",
+  dv = "median_dist",
+  within = "blockgruppe",
+  data = darts_binned_3_old,
+  type = 3
+)
+contrast_median_3_old <- contrast(emmeans(aov_afex_median_3_old, ~ blockgruppe), method = "poly")
+```
+
+::: {.panel-tabset}
+
+## Mittelwert (jung)
+```{r}
+#| eval: true
+#| echo: false
+
+kable(anova_table_mean_3_jung, caption = "Within-Subject Effects")
+kable(contrast_mean_3_jung, caption = "Within-Subject Contrasts")
+```
+
+## Median (jung)
+```{r}
+#| eval: true
+#| echo: false
+
+kable(anova_table_median_3_jung, caption = "Within-Subject Effects")
+kable(contrast_median_3_jung, caption = "Within-Subject Contrasts")
+```
+
+## Mittelwert (alt)
+```{r}
+#| eval: true
+#| echo: false
+
+kable(anova_table_mean_3_old, caption = "Within-Subject Effects")
+kable(contrast_mean_3_old, caption = "Within-Subject Contrasts")
+```
+
+## Median (alt)
+```{r}
+#| eval: true
+#| echo: false
+
+kable(anova_table_median_3_old, caption = "Within-Subject Effects")
+kable(contrast_median_3_old, caption = "Within-Subject Contrasts")
+```
+:::
 :::
 
 
-## NIRS Auswertung
+# NIRS Auswertung
 
 ::: {.callout-important}
-Hier habe ich `r_n_=7` Proband*innen ausgewertet.
+Hier habe ich _n_=7  Proband*innen ausgewertet.
 :::
 
 
