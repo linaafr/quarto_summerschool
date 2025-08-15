@@ -34,7 +34,7 @@ code-fold: false
 ---
 ## Preprocessing (vor GLM)
 
-**Datenqualität Check**
+**Check Datenqualität**
 
 * mit QT-Nirs [@hernandez2020nirsplot]
 * 70 % der Kanäle eines Probanden müssen mind. eine Datenqualität von 70 % erreichen
@@ -66,7 +66,6 @@ dod = hmrR_Intensity2OD(int);
 
 %# MotionArtefact Detection
 
-
 MotArt.tMotion    = 1.0; % tastet jetzt in 1s-Schritten ab
 MotArt.thresh     = 2.0; % wird in dem Fenster ein Signalwechsel >2.0 entdeckt, ist es ein Artefakt
 MotArt.NewRejLim  = 0.5;
@@ -82,7 +81,6 @@ MotArt.MaskTime   = 1; % um jedes Artefakt wird zusätzlich 1s davor und danach 
 ```{matlab}
 #| eval: false
 #| echo: true
-
 
 %# Homer Algorithmus
 mlActHmr = hmrR_PruneChannels(int, probe, mlActMan, tInc_pruning, dRange, SNRthresh, SDrange);
