@@ -10,6 +10,7 @@ format:
     toc-location: left 
     theme: 
       light: minty
+      dark: superhero
     fontsize: 32 px 
     font-family: Roboto
     grid:

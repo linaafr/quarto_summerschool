@@ -9,6 +9,7 @@ format:
     toc-title: Inhalt
     toc-location: left 
     theme: 
+      dark: superhero
       light: minty
     fontsize: 32 px 
     font-family: Roboto
