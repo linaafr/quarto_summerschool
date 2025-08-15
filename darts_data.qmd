@@ -546,8 +546,8 @@ contrast_table <- contrast(emmeans(aov_afex, ~ block), method = "poly") %>%
 #| eval: true
 #| echo: false
 
-kable(anova_table, caption = "ANOVA – Block (1–20)")
-kable(contrast_table, caption = "Kontraste")
+kable(anova_table, caption = "Within-Subject Effects")
+kable(contrast_table, caption = "Within-Subject Contrast")
 ```
 
 ## Median (jung)
@@ -605,7 +605,7 @@ contrast_table <- contrast(emmeans(aov_afex, ~ block), method = "poly") %>%
 kable(
   anova_table %>%
     select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p),
-  caption = "Within-Subject Effects)"
+  caption = "Within-Subject Effects"
 )
 kable(contrast_table, caption = "Within-Subject Contrasts")
 ```
@@ -1028,11 +1028,11 @@ anova_result_mean_2 <- ezANOVA(
 
 # Partielles Eta² hinzufügen
 anova_table_mean_2 <- anova_result_mean_2$ANOVA %>%
-  mutate(
-    etasq_p = SSn / (SSn + SSd)   # partielles eta²
-  ) %>%
-  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%  # nur relevante Spalten
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%                 # partielles eta²
+  filter(Effect != "(Intercept)") %>%                     # Intercept rausfiltern
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%    # nur relevante Spalten
   mutate(across(where(is.numeric), ~ round(., 3)))
+
 
 
 # Modell mit afex
@@ -1056,10 +1056,7 @@ contrast_mean_2 <- contrast(emm_mean_2, method = "poly")
 #| eval: true
 #| echo: false
 
-anova_table_mean_2 <- anova_result_mean_2$ANOVA %>%
-  mutate(across(where(is.numeric), ~ round(., 3)))
-
-kable(anova_table_mean_2, caption = "Within-Subject Effects (partielles η²)")
+kable(anova_table_mean_2, caption = "Within-Subject Effects")
 kable(contrast_mean_2, caption = "Within-Subject Contrasts")
 ```
 
@@ -1083,11 +1080,10 @@ anova_result_median_2 <- ezANOVA(
   detailed = TRUE
 )
 
-anova_table_median_2 <- anova_result_mean_2$ANOVA %>%
-  mutate(
-    etasq_p = SSn / (SSn + SSd)   # partielles eta²
-  ) %>%
-  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%  # nur relevante Spalten
+anova_table_median_2 <- anova_result_median_2$ANOVA %>%
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%                 # partielles eta²
+  filter(Effect != "(Intercept)") %>%                     # Intercept rausfiltern
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%    # nur relevante Spalten
   mutate(across(where(is.numeric), ~ round(., 3)))
 
 # Modell mit afex
@@ -1788,6 +1784,171 @@ datatable(medians_wide_5_alt,
 ) %>%
   formatRound(columns = 2:ncol(medians_wide_5_alt), digits = 2)
 ```
+:::
+## Anova mit Messwiederholung 
+::: {.panel-tabset}
+
+```{r}
+#| eval: true
+#| include: false
+
+## --- ANOVA 4×5er Blöcke: JUNG ---
+
+# Faktoren korrekt setzen
+darts_binned_5_jung$vp <- factor(darts_binned_5_jung$vp)
+darts_binned_5_jung$blockgruppe <- factor(
+  darts_binned_5_jung$blockgruppe,
+  levels = c("Block 1–5", "Block 6–10", "Block 11–15", "Block 16–20")
+)
+
+## Mittelwert
+anova_result_mean_5_jung <- ezANOVA(
+  data = darts_binned_5_jung,
+  dv = mean_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 3,
+  detailed = TRUE
+)
+
+anova_table_mean_5_jung <- anova_result_mean_5_jung$ANOVA %>%
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%     # partielles eta²
+  filter(Effect != "(Intercept)") %>%
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+aov_afex_mean_5_jung <- aov_ez(
+  id = "vp",
+  dv = "mean_dist",
+  within = "blockgruppe",
+  data = darts_binned_5_jung,
+  type = 3
+)
+emm_mean_5_jung <- emmeans(aov_afex_mean_5_jung, ~ blockgruppe)
+contrast_mean_5_jung <- contrast(emm_mean_5_jung, method = "poly")
+
+## Median
+anova_result_median_5_jung <- ezANOVA(
+  data = darts_binned_5_jung,
+  dv = median_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 3,
+  detailed = TRUE
+)
+
+anova_table_median_5_jung <- anova_result_median_5_jung$ANOVA %>%
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%     # partielles eta²
+  filter(Effect != "(Intercept)") %>%
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+aov_afex_median_5_jung <- aov_ez(
+  id = "vp",
+  dv = "median_dist",
+  within = "blockgruppe",
+  data = darts_binned_5_jung,
+  type = 3
+)
+emm_median_5_jung <- emmeans(aov_afex_median_5_jung, ~ blockgruppe)
+contrast_median_5_jung <- contrast(emm_median_5_jung, method = "poly")
+
+## --- ANOVA 4×5er Blöcke: ALT ---
+
+# Faktoren korrekt setzen
+darts_binned_5_alt$vp <- factor(darts_binned_5_alt$vp)
+darts_binned_5_alt$blockgruppe <- factor(
+  darts_binned_5_alt$blockgruppe,
+  levels = c("Block 1–5", "Block 6–10", "Block 11–15", "Block 16–20")
+)
+
+## Mittelwert
+anova_result_mean_5_alt <- ezANOVA(
+  data = darts_binned_5_alt,
+  dv = mean_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 3,
+  detailed = TRUE
+)
+
+anova_table_mean_5_alt <- anova_result_mean_5_alt$ANOVA %>%
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%
+  filter(Effect != "(Intercept)") %>%
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+aov_afex_mean_5_alt <- aov_ez(
+  id = "vp",
+  dv = "mean_dist",
+  within = "blockgruppe",
+  data = darts_binned_5_alt,
+  type = 3
+)
+emm_mean_5_alt <- emmeans(aov_afex_mean_5_alt, ~ blockgruppe)
+contrast_mean_5_alt <- contrast(emm_mean_5_alt, method = "poly")
+
+## Median
+anova_result_median_5_alt <- ezANOVA(
+  data = darts_binned_5_alt,
+  dv = median_dist,
+  wid = vp,
+  within = blockgruppe,
+  type = 1,
+  detailed = TRUE
+)
+
+anova_table_median_5_alt <- anova_result_median_5_alt$ANOVA %>%
+  mutate(etasq_p = SSn / (SSn + SSd)) %>%
+  filter(Effect != "(Intercept)") %>%
+  select(Effect, DFn, DFd, SSn, SSd, F, p, etasq_p) %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+aov_afex_median_5_alt <- aov_ez(
+  id = "vp",
+  dv = "median_dist",
+  within = "blockgruppe",
+  data = darts_binned_5_alt,
+  type = 3
+)
+emm_median_5_alt <- emmeans(aov_afex_median_5_alt, ~ blockgruppe)
+contrast_median_5_alt <- contrast(emm_median_5_alt, method = "poly")
+```
+
+## Mittelwert (jung)
+```{r}
+#| eval: true
+#| echo: false
+kable(anova_table_mean_5_jung, caption = "Within-Subject Effects")
+kable(contrast_mean_5_jung, caption = "Within-Subject Contrasts")
+```
+
+## Median (jung)
+
+```{r}
+#| eval: true
+#| echo: false
+kable(anova_table_median_5_jung, caption = "Within-Subject Effects")
+kable(contrast_median_5_jung, caption = "Within-Subject Contrasts")
+```
+
+## Mittelwert (alt)
+
+```{r}
+#| eval: true
+#| echo: false
+kable(anova_table_mean_5_alt, caption = "Within-Subject Effects")
+kable(contrast_mean_5_alt, caption = "Within-Subject Contrasts")
+```
+
+## Median (alt)
+```{r}
+#| eval: true
+#| echo: false
+kable(anova_table_median_5_alt, caption = "Within-Subject Effects")
+kable(contrast_median_5_alt, caption = "Within-Subject Contrasts")
+```
+
 :::
 :::
 
