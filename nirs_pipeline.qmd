@@ -100,7 +100,7 @@ SCIfcut_max = 2.2;
 
 **Motion Artifacts Correction**
 
-* deinieren von sehr schlechten Kanälen, die ich nicht berücksichtigen möchte
+* definieren von sehr schlechten Kanälen, die ich nicht berücksichtigen möchte
 ```{r}
 #| eval: false
 #| echo: true
