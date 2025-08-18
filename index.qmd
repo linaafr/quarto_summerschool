@@ -14,3 +14,5 @@ Here you can see my results as [pdf presentation](my_pdf_pres.pdf)
 Here you can see my darts results as [html](darts_data.html)
 
 Here you can see my nirs accelerometer solution [html](nirs_pipeline.html)
+
+Here you can see my complete nirs pipeline [html](nirs_pipeline_complete.html)
