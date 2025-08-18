@@ -317,3 +317,562 @@ c_vector = zeros(1, length(conditions)); % jetzt ist c_vector leer
 idxBasis = 1;
 paramsBasis = [0.5 0.5];
 ```
+
+
+
+
+# TFCE Prepare Skript
+
+### Start, loading toolboxes and data 
+
+**1. Add toolboxes** and define working directories
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+Default = load ('/Users/linafricke/Documents/Promotion/Studie 1/07_Datenanalyse fNIRS/Codes/TFCE/ErpTemplate.mat'); %# erpTemplate
+Default.Directory = ('/Users/linafricke/Desktop/NIRS data/COMP_D01_D02');            %# Verzeichnisstruktur
+addpath(genpath('/Users/linafricke/Documents/MATLAB/permutationTest'));              %# Permutations toolbox
+addpath(genpath('/Users/linafricke/Documents/MATLAB/ept_TFCE-matlab-master'));       %# TFCE toolbox
+```
+
+Default.ErpTemplate.eloc has an array of 1x116 and has the following columns. 
+
+| column   | example   | description |
+|----------| ----------| ----------| 
+| labels   |  Fpz-Fp1  | name of channel | 
+| type     | []        | type of channel (?)  | 
+| theta    | []        | 2D polar coordinates for topo-plot, angle / distance from head center |
+| radius   | []        | 2D polar coordinates for topo-plot, angle / distance from head center |
+| X        | -14.8870  | cartesian coordiantes, left (-), right (+) |
+| Y        | 88.6900   | cartesian coordiantes, posterior (-), anterior (+) |
+| Z        | -10.5650  | cartesian coordiantes, inferior (-), superior (+) |
+| sph_theta |  [] | spherical coordinates |
+| sph_phi |  [] | spherical coordinates |
+| sph_radius |  [] | spherical coordinates |
+| urchan | 1 ... 116  | original channel number |
+| ref| 'average' | reference scheme | 
+
+::: {.callout-note}
+* **X/Y/Z** → to build the neighborhood graph (ept_ChN2) and for plotting channel locations.
+* **labels** → for figure labels and tables.
+:::
+
+**2. Define variables** and save them in the Default folder
+
+| Command            | defines ...          | here:                         |
+|--------------------|----------------------|------------------------------ |
+| SignificationLevel | significance niveau  |0.05                           |
+| Colors             | colors for plot      | 0, 0.4470, 0.7410; 0.8, 0.8, 0.8  |
+| SD                 | short distance channels that are removed  | 14, 30, 43, 55, 61, 80, 84, 102 |
+| Chromophor         | number of chromophores  | 3
+| ChromophorLabel    | name of chromophores | HbO, HbR, HbT |
+| Condition          | number of conditions / markers in the data set | 6   |
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+Default.SignificationLevel = 0.05; 
+Default.Colors = [0 0.4470 0.7410; 0.8 0.8 0.8]; 
+Default.SD = [14 30 43 55 61 80 84 102]; 
+Default.Chromophor = 3;  
+Default.Chromophorlabel = {'HbO'; 'HbR'; 'HbT'}; 
+Default.Condition = 6; 
+```
+
+**3. Define chromophore and condition** that you want to analyse and save them in Default folder
+
+| Number    | SelectChromophore    | SelectStatistic                          | SelectCondition               |
+|-----------|----------------------|------------------------------------------| ------------------------------
+| 1         | HbO                  | Compare Baseline vs. Activity (Group 1)  | analyse condition 1           |
+| 2         | HbR                  | Compare Baseline vs. Activity (Group 2)  | analyse condition 2           |
+| 3         | HbT                  | Compare Activity (Group 1) vs. Activity (Group 2)  | analyse condition 3 etc. |
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+Default.SelectChromophor = 2; 
+Default.SelectStatistic = 2;  
+Default.SelectCondition = 3;   
+
+Default.PlotTimeN = 428; %# defines time frame of plot, Default.PlotTimeN = Zeit bezogener N-Wert (Zeile)        
+```
+
+**4. Load preprocessed data** (dcAvg)
+
+::: {.callout-note}
+make sure that your data is
+
+* in one folder, already set as working directory, here: Default.Directory
+* is a txt.file
+* is named with the ending of your condition, here: D01/D02
+:::
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+Default.FileStructure = dir(fullfile(Default.Directory,'*.txt')); 
+Default.FileNumbers = length(Default.FileStructure); 
+
+for i = 1 : Default.FileNumbers
+    %Default.FileName(i,1) = strcat(Default.FileStructure(i).folder, '/', Default.FileStructure(i).name);
+    Default.FileName{i,1} = strcat(Default.FileStructure(i).folder, '/', Default.FileStructure(i).name); %Default.FileName changed from () to {} because cell array is needed
+end
+
+```
+
+To check how many files were loaded you can type `Default.FileNumbers` in your Command Window (here, `ans=14`).
+
+Separate the files regarding your conditions (Group 1 and 2, here: D01 and D02)
+```{matlab}
+#| eval: false
+#| echo: true
+
+Default.FileNameD01 = Default.FileName(find(~cellfun(@isempty,strfind(Default.FileName,"dcAvg_D01"))),1);
+Default.FileNameD02 = Default.FileName(find(~cellfun(@isempty,strfind(Default.FileName,"dcAvg_D02"))),1);
+```
+
+Load .txt data files
+
+| Command            | defines ...          | here:                         |
+|--------------------|----------------------|------------------------------ |
+| delimiterIn        | delimiter            | /t (tab)                      |
+| headerlinesIn      | first 2 rows as header, data starts at row 3  | 2  |
+| ImportDataD01      | cell array for D01  | 
+| ImportDataD02      | cell array for D02 |
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+delimiterIn = "\t"; % defines delimiter (here: tab)
+headerlinesIn = 2; % first 2 rows are header, data starts at row
+ImportDataD01 = cell(1,length(Default.FileNameD01)); %builds cell array (number of columns = number of files (participants)
+ImportDataD02 = cell(1,length(Default.FileNameD02)); %builds cell array (number of columns = number of files (participants)
+```
+
+Definining file names for D01 and D02
+```{matlab}
+#| eval: false
+#| echo: true
+
+%# D01
+for i = 1 : length(Default.FileNameD01) %here we define the files name "Default.FileNameD01"), delimiter = tab, skip 1st 2 rows
+    %temp = importdata(Default.FileNameBL(i),delimiterIn,headerlinesIn);
+    %hier ist (i) nicht als cell array definiert
+    temp = importdata(Default.FileNameD01{i},delimiterIn,headerlinesIn); 
+    ImportDataD01{i} = temp.data;
+end
+
+%# D02
+for i = 1 : length(Default.FileNameD02)
+    %hier auch (i) als cell array definieren
+    temp = importdata(Default.FileNameD02{i},delimiterIn,headerlinesIn);
+    ImportDataD02{i} = temp.data;
+end
+
+clearvars i temp delimiterIn headerlinesIn 
+```
+
+The Default.FileName is organised as follows after the data has been loaded:
+
+| Default.FileName   |
+|--------------------|
+| '/Users/linafricke/Desktop/NIRS data/COMP_D01_D02/vp02_dcAvg_D01.txt'     |  
+| '/Users/linafricke/Desktop/NIRS data/COMP_D01_D02/vp02_dcAvg_D02.txt'     |
+| ...  | 
+| '/Users/linafricke/Desktop/NIRS data/COMP_D01_D02/vp13_dcAvg_D02.txt'     |
+
+::: {.callout-note}
+Problem with NaN at the end: ‘Index in position 2 exceeds array bounds. Index must not exceed 455.’
+Solution for NaN at the end: In the .txt data file, enter a ‘1’ in the last column (HRF HbT,32,22), first line.
+:::
+
+### Prepare data for Erp-Template
+
+**1. Separate chromophores** 
+
+* from 1x7 cell structure (ImportDataD01, ImportDataD02) to 3x7 cell structure (ChromophoreD01, ChromophoreD02) where HbO, HbR and HbT are separated
+* j = goes over all chromophores (1 = HbO, 2 = HbR, 3 = HbT)
+* i = goes over all participants
+* j+1 = start index for present chromophore (j=1 = column 2, etc.)
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+ChromophorD01 = cell(Default.Chromophor, length(Default.FileNameD01)); 
+ChromophorD02 = cell(Default.Chromophor, length(Default.FileNameD02));
+
+%# D01
+for j = 1 : Default.Chromophor 
+    for i = 1 : length(Default.FileNameD01)
+        ChromophorD01{j,i} = ImportDataD01{1, i}(:,j+1:Default.Chromophor:end); 
+    end
+end
+
+%# D02
+for j = 1 : Default.Chromophor 
+    for i = 1 : length(Default.FileNameD02)
+        ChromophorD02{j,i} = ImportDataD02{1, i}(:,j+1:Default.Chromophor:end);
+    end
+end
+
+clearvars i j
+```
+
+**2. Separate conditions** 
+
+* ConditionD01 is merged from Default.Conditions (here: `6`), Default.Chromophor (here: `3`), and length of Default.FileNameD01, respectively, number of participants per condition (here: `7`) 
+* array: 6x3x7 
+
+i.e. **ConditionD02:**
+
+| val (:,:,1)        |                  |                   |
+|--------------------| ---------------- | ----------------- |
+| {275×114 double}  | {275×114 double}  |  {275×114 double} |
+| {275×114 double}  | {275×114 double}  |  {275×114 double} |
+| {275×114 double}  | {275×114 double}  |  {275×114 double} |
+| {275×114 double}  | {275×114 double}  |  {275×114 double} |
+| {275×114 double}  | {275×114 double}  |  {275×114 double} |
+| {275×114 double}  | {275×114 double}  |  {275×114 double} |
+| ... | ...  |  ...|
+| val (:,:,7)        |                  |                   |
+| ...  | ... |  ... |
+
+
+**3. Delete SD channels**
+
+Loading Erp.Template into variable `erp`.
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+erp = Default.ErpTemplate; %#loads template into variable "erp"
+erp.eloc(Default.SD)=[]; %# deletes all SD channels 
+```
+
+Overwrite ConditionD01 and ConditionD02 to create a new array without SD channels.
+```{matlab}
+#| eval: false
+#| echo: true
+
+%# D01
+for k = 1 : Default.Condition 
+    for j = 1 : Default.Chromophor 
+        for i = 1:length(Default.FileNameD01)
+            Prune.Cond_holdD01=ConditionD01(k,j,i); 
+            Prune.Cond_holdD01{1, 1}(:,Default.SD)=[];
+            ConditionD01 (k,j,i)=Prune.Cond_holdD01; %writes "corrected" matrix into cells
+        end
+    end
+end
+
+%# D02
+for k = 1 : Default.Condition 
+    for j = 1 : Default.Chromophor 
+        for i = 1:length(Default.FileNameD02)
+            Prune.Cond_holdD02=ConditionD02 (k,j,i);
+            Prune.Cond_holdD02{1, 1}(:,Default.SD)=[];
+            ConditionD02 (k,j,i)=Prune.Cond_holdD02;
+        end
+    end
+end
+
+clearvars i j k Prune
+```
+
+### Fill out Erp-Template
+
+**1. Interpolate NaN channels**
+
+Identifying channel neighbours 
+```{matlab}
+#| eval: false
+#| echo: true
+
+erp.ChN = ept_ChN2(erp.eloc)
+```
+
+Create matrix for channel coordinates
+```{matlab}
+#| eval: false
+#| echo: true
+
+erp.ChN = ept_ChN2(erp.eloc)
+```
+
+Optional
+
+* to later compare not-interpolated channels with interpolated channels
+* important to delete at the end!
+```{matlab}
+#| eval: false
+#| echo: true
+
+ConditionD01_beforeInterpol = ConditionD01;
+ConditionD02_beforeInterpol = ConditionD02;
+```
+
+Interpolate for both conditions
+```{matlab}
+#| eval: false
+#| echo: true
+
+%# D01
+for k = 1 : Default.Condition 
+    for j = 1 : Default.Chromophor 
+        for i = 1:length(Default.FileNameD01)
+            Int.data_orig = cell2mat((ConditionD01 (k,j,i)));                
+            Int.data_hold = cell2mat((ConditionD01 (k,j,i)));                
+
+            Int.nanCh = find(isnan(Int.data_hold(1,:)));                    
+            for l = Int.nanCh
+                Int.ChN = nonzeros(erp.ChN(l,:))'';     %# delete 2nd '                     
+                Int.ChN_nan = isnan(Int.data_orig(1,Int.ChN));             
+                Int.ChN = Int.ChN(Int.ChN_nan==0);                             
+
+                Int.coordinates_nanCh = Int.Coordinates(l,:);              
+                Int.coordinates_ChN   = Int.Coordinates(Int.ChN,:);         
+                Int.distance = pdist2(Int.coordinates_nanCh,Int.coordinates_ChN);
+                Int.repair = 1./Int.distance;                               
+                Int.repair = Int.repair./sum(Int.repair);                   
+                Int.repair_nanCh = Int.repair .* Int.data_hold(:,Int.ChN); 
+                Int.data_hold(:,l) = sum(Int.repair_nanCh,2);              
+            end
+            ConditionD01(k,j,i)=mat2cell(Int.data_hold,size(Int.data_hold,1),size(Int.data_hold,2));
+            NanChD01(i).data = Int.nanCh;                                  
+        end
+    end
+end
+
+%# D02
+for k = 1 : Default.Condition 
+    for j = 1 : Default.Chromophor 
+        for i = 1:length(Default.FileNameD02)
+            Int.data_orig = cell2mat((ConditionD02(k,j,i)));
+            Int.data_hold = cell2mat((ConditionD02(k,j,i)));
+
+            Int.nanCh = find(isnan(Int.data_hold(1,:)));                   
+            for l = Int.nanCh
+                Int.ChN = nonzeros(erp.ChN(l,:))'';         %# delete 2nd '                
+                Int.ChN_nan = isnan(Int.data_orig(1,Int.ChN));             
+                Int.ChN = Int.ChN(Int.ChN_nan==0);                       
+
+                Int.coordinates_nanCh = Int.Coordinates(l,:);
+                Int.coordinates_ChN   = Int.Coordinates(Int.ChN,:);
+                Int.distance = pdist2(Int.coordinates_nanCh,Int.coordinates_ChN);
+                Int.repair = 1./Int.distance;
+                Int.repair = Int.repair./sum(Int.repair);           
+                Int.repair_nanCh = Int.repair .* Int.data_hold(:,Int.ChN);
+                Int.data_hold(:,l) = sum(Int.repair_nanCh,2);
+            end
+            ConditionD02(k,j,i)=mat2cell(Int.data_hold,size(Int.data_hold,1),size(Int.data_hold,2));
+            NanChD02(i).data = Int.nanCh;
+        end
+    end
+end
+
+clearvars i j l k Int
+```
+
+What happens here?
+
+| Line                                                   | Description
+|--------------------------------------------------------|--------------------------------------------
+|  Int.data_orig = cell2mat((ConditionD01 (k,j,i)));     |  original data
+|  Int.data_hold = cell2mat((ConditionD01 (k,j,i)));     |  working copy that will be overwritten   
+|  Int.nanCh = find(isnan(Int.data_hold(1,:)));          |  find all NaN channels
+|  Int.ChN = nonzeros(erp.ChN(l,:))';                    |  find neighboring channels from NaN channel
+|  Int.ChN_nan = isnan(Int.data_orig(1,Int.ChN));        |  check if neighboring channel are NaN
+|  Int.ChN = Int.ChN(Int.ChN_nan==0);                    |  takes only non-NaN channels  
+|  Int.coordinates_nanCh = Int.Coordinates(l,:);         |  coordinates from NaN channel
+|  Int.coordinates_ChN   = Int.Coordinates(Int.ChN,:);   |  coordinates from neighboring channels
+|  Int.distance = pdist2(Int.coordinates_nanCh,Int.coordinates_ChN)      |  distance of NaN-channel to neighboring channels
+|  Int.repair = 1./Int.distance;                         |  1/distance to favor close channel
+|  Int.repair = Int.repair./sum(Int.repair);             |  fraction of interpolation for each neighboring channel
+|  Int.repair_nanCh = Int.repair .* Int.data_hold(:,Int.ChN);            |  "interpolate" NaN-channel
+|  Int.data_hold(:,l) = sum(Int.repair_nanCh,2);         |  overwrite data
+|  NanChD01(i).data = Int.nanCh;                         |  keeps information which channels were interpolated
+
+ 
+**2. TFCE Data structure**
+
+* Condition (Subject, Channel, Value)
+* new data structure (TFCE.dat_conD01) is build with all conditions (k), chromophores (j), participant files (i)
+* transposed: TFCE.dat_conBL with dimensions: 1 = participant, 2 = channel, 3 = time index
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+%# D01
+for k = 1 : Default.Condition  
+    for j = 1 : Default.Chromophor
+        for i = 1:length(Default.FileNameD01)
+            TFCE.dat_conD01{j,k}(i,:,:) = transpose(cell2mat((ConditionD01 (k,j,i)))); 
+        end
+    end
+end
+
+%# D02
+for k = 1 : Default.Condition 
+    for j = 1 : Default.Chromophor
+        for i = 1:length(Default.FileNameD02)
+            TFCE.dat_conD02{j,k}(i,:,:) = transpose(cell2mat((ConditionD02 (k,j,i))));
+        end
+    end
+end
+
+clearvars i j k
+```
+
+### Statistics
+
+**1. ERP and select condition**
+
+* TFCE.dat_conD01/D02{chrom, cond} has shaoe: [Nsubjects x Nchannels x Ntime]
+* For cases 1 and 2, dat_con1 is all zeros with the same size as dat_con2 → means the later ttest is effectively a one-sample test of dat_con2 against zero (i.e., “is the activity different from 0?”)
+* For case 3, it’s a between-groups comparison (ttest2 is used later)
+
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+erp.time = transpose(ImportDataD01{1, 1}(:,1)); 
+
+%# Calculated statistics, depending on within or between subjects
+if Default.SelectStatistic ==1
+    erp.dat_con1 = zeros(size(TFCE.dat_conD01{Default.SelectChromophor, Default.SelectCondition}));  %# Baseline Bloc (bzw NULL) matrix with zeros
+    erp.dat_con2 = TFCE.dat_conD01{Default.SelectChromophor, Default.SelectCondition};               %# Activity Bloc --> matrix with activity data
+elseif Default.SelectStatistic ==2
+    erp.dat_con1 = zeros(size(TFCE.dat_conD02{Default.SelectChromophor, Default.SelectCondition}));  %# Baseline Rand
+    erp.dat_con2 = TFCE.dat_conD02 {Default.SelectChromophor, Default.SelectCondition};              %# Activity Rand
+elseif Default.SelectStatistic ==3
+    erp.dat_con1 = TFCE.dat_conD01{Default.SelectChromophor, Default.SelectCondition};               %# Activity Bloc
+    erp.dat_con2 = TFCE.dat_conD02{Default.SelectChromophor, Default.SelectCondition};               %# Activity Rand
+end
+
+%# ERP-export
+erp_1 = erp;
+```
+
+**2. Test**
+
+* **If**: `Default.SelectStatistic == 3`: two-sample t-test (ttest2) between tempCon1 and tempCon2 → between-groups (here, D01 vs D02) at that channel & time.
+* **Else**: paired t-test (ttest) between tempCon1 and tempCon2 → within-subject.
+* it stores: `Statistic.p(ch, t)` = p-value, `Statistic.TValue(ch, t)` = t-statistic (`stats.tstat`)
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+erp.time = transpose(ImportDataD01{1, 1}(:,1)); 
+
+%# Calculated statistics, depending on within or between subjects
+if Default.SelectStatistic ==1
+    erp.dat_con1 = zeros(size(TFCE.dat_conD01{Default.SelectChromophor, Default.SelectCondition}));  %# Baseline Bloc (bzw NULL), matrix with zeros
+    erp.dat_con2 = TFCE.dat_conD01{Default.SelectChromophor, Default.SelectCondition};               %# Activity Bloc, matrix with activity data
+elseif Default.SelectStatistic ==2
+    erp.dat_con1 = zeros(size(TFCE.dat_conD02{Default.SelectChromophor, Default.SelectCondition}));  %# Baseline Rand
+    erp.dat_con2 = TFCE.dat_conD02 {Default.SelectChromophor, Default.SelectCondition};              %# Activity Rand
+elseif Default.SelectStatistic ==3
+    erp.dat_con1 = TFCE.dat_conD01{Default.SelectChromophor, Default.SelectCondition};               %# Activity Bloc
+    erp.dat_con2 = TFCE.dat_conD02{Default.SelectChromophor, Default.SelectCondition};               %# Activity Rand
+end
+
+%# ERP-export
+erp_1 = erp;
+```
+
+**3. Plot**
+
+* plot p-values (significance) per channel for one time point
+
+```{matlab}
+#| eval: false
+#| echo: true
+
+%%
+% Plot
+figure(1)
+fig1 = scatter([erp.eloc.X],[erp.eloc.Y],100, Statistic.p(Default.PlotTimeN,:),'filled');  
+%# 100= circle size, text([erp.eloc.X],[erp.eloc.Y],sprintfc(' %d'',1:numel([erp.eloc.X]))) %# delete second ' after d''
+colorbar('Ticks',[Default.SignificationLevel, 2 * Default.SignificationLevel],...
+         'TickLabels',{'p <= 0.05','p > 0.05'})
+colormap(Default.Colors);
+caxis([0 2 * Default.SignificationLevel])
+grid on
+pbaspect([1 1 1])
+set(gcf,'Position',[100 100 800 800])
+xlim([-125 125])
+ylim([-125 125])
+title(strcat('p-Value at time = ', num2str(erp.time(Default.PlotTimeN)), " s"))
+
+%# loop over the preset plot by plotting the next time window
+mov_on= 0;                                                                  % play a movie 1=on, else off)
+if mov_on ==1
+for time_run= 1:10:size(erp.dat_con1,3)
+    set(fig1, 'CData', Statistic.p(time_run,:))
+    title(['p-Value at time ',num2str(erp.time(time_run)),'s']);
+    drawnow
+    pause(0.1);
+end
+end
+```
+
+### Baseline-corrected means and channel-wise statistics
+
+**1. Define 3 time windows**
+
+* Baseline: ≤ 0 s, 
+* Play: 5–25 s, 
+* Pause: 30–50 s
+```{matlab}
+#| eval: false
+#| echo: true
+
+Default.BaselineRange = find(erp.time <= 0);                              
+Default.MeanPlay = find(erp.time >= 5 & erp.time <= 25);                  
+Default.MeanPause = find(erp.time >= 30 & erp.time <= 50); 
+```
+
+**2. Per-channel, per-subject averages in time windows**
+
+* computes per-subject, per-channel averages across time within each window for both datasets 
+* result: matrices of shape [subjects × channels]
+```{matlab}
+#| eval: false
+#| echo: true
+
+for ch = 1 : size(erp.dat_con1,2)
+    Mean.BaselineCon1(:,ch) = mean(squeeze(erp.dat_con1(:, ch, Default.BaselineRange)),2,'omitnan');
+    Mean.BaselineCon2(:,ch) = mean(squeeze(erp.dat_con2(:, ch, Default.BaselineRange)),2,'omitnan');
+    Mean.PlayCon1(:,ch) = mean(squeeze(erp.dat_con1(:, ch, Default.MeanPlay)),2,'omitnan');
+    Mean.PlayCon2(:,ch) = mean(squeeze(erp.dat_con2(:, ch, Default.MeanPlay)),2,'omitnan');
+    Mean.PauseCon1(:,ch) = mean(squeeze(erp.dat_con1(:, ch, Default.MeanPause)),2,'omitnan');
+    Mean.PauseCon2(:,ch) = mean(squeeze(erp.dat_con2(:, ch, Default.MeanPause)),2,'omitnan');
+end
+```
+
+**3. Baseline correction**
+
+* subtract baseline means from play/pause means
+* separately for the two datasets
+```{matlab}
+#| eval: false
+#| echo: true
+
+Mean.PlayCon1 = Mean.PlayCon1 - Mean.BaselineCon1;
+Mean.PlayCon2 = Mean.PlayCon2 - Mean.BaselineCon2;
+Mean.PauseCon1 = Mean.PauseCon1 - Mean.BaselineCon1;
+Mean.PauseCon2 = Mean.PauseCon2 - Mean.BaselineCon2;
+```
+
+

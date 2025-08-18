@@ -8,9 +8,7 @@ format:
     toc: true 
     toc-title: Inhalt
     toc-location: left 
-    theme: 
-      dark: superhero
-      light: minty
+    theme: sandstone
     fontsize: 32 px 
     font-family: Roboto
     grid:
